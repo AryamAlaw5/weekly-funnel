@@ -5,6 +5,7 @@ DROP VIEW  IF EXISTS v_status_changes;
 DROP TABLE IF EXISTS status_snapshots;
 DROP TABLE IF EXISTS leads;
 DROP TABLE IF EXISTS status_map;
+DROP TABLE IF EXISTS meta;
 
 -- Which funnel stage each sheet status counts as. Edit this table, not the code,
 -- when the team adds a status. stage_order is the furthest stage a lead has reached.
@@ -13,11 +14,17 @@ CREATE TABLE status_map (
   stage_order INTEGER NOT NULL      -- 0 added, 1 message sent, 2 contacted, 3 replied, 4 meeting, 5 won
 );
 
+-- Where the data came from: source (fake | sheet), as_of date, unmapped statuses.
+CREATE TABLE meta (
+  key   TEXT PRIMARY KEY,
+  value TEXT NOT NULL
+);
+
 -- One row per lead, current state (what the sheet shows today).
 CREATE TABLE leads (
   lead_id    TEXT PRIMARY KEY,      -- stable hash of tab + company + contact/website
   source_tab TEXT NOT NULL,         -- Mawsool | Sfere | Zid | Salla
-  company    TEXT NOT NULL,
+  company    TEXT,                  -- fake data only; real snapshots are anonymous
   contact    TEXT,
   status     TEXT NOT NULL REFERENCES status_map(status),
   date_added DATE NOT NULL,
