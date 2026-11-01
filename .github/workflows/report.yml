@@ -24,9 +24,14 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - name: Build database (fake data) and report
+      - name: Build database and report
         run: |
-          python seed_fake_data.py
+          # real snapshots from the sheet if present, otherwise the fake-data demo
+          if ls data/snapshots/*.csv >/dev/null 2>&1; then
+            python ingest.py
+          else
+            python seed_fake_data.py
+          fi
           python report.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
