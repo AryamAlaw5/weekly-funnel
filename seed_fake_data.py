@@ -71,6 +71,7 @@ def main():
     db = sqlite3.connect(DB_PATH)
     db.executescript((HERE / "schema.sql").read_text())
     db.executemany("INSERT INTO status_map VALUES (?, ?)", STATUS_MAP.items())
+    db.executemany("INSERT INTO meta VALUES (?, ?)", [("source", "fake"), ("as_of", TODAY.isoformat()), ("unmapped", "")])
 
     this_week = week_start(TODAY)
     used, leads, snapshots = set(), [], []
