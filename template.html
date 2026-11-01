@@ -46,6 +46,10 @@ select { min-height: 38px; font: inherit; color: var(--text-primary); background
   border-radius: 999px; padding: 0 var(--s4); transition: border-color .15s; }
 select:hover { border-color: #4a4560; }
 @media (pointer: coarse) { .seg button, select { min-height: 44px; } }
+[hidden] { display: none !important; }
+.asof { margin-left: auto; color: var(--text-muted); font-size: 12px; }
+.notice { margin: 0 0 var(--s4); padding: var(--s3) var(--s4); border: 1px solid rgba(250,178,25,.45); border-radius: var(--radius);
+  background: rgba(250,178,25,.08); color: var(--text-primary); }
 
 .kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--s3); margin-bottom: var(--s4); }
 .kpi { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--s4); }
@@ -93,6 +97,7 @@ th:first-child { position: sticky; left: 0; text-align: left; background: var(--
   .kpi:last-child { grid-column: 1 / -1; }
 }
 @media (max-width: 560px) {
+  .asof { margin-left: 0; width: 100%; }
   h1 { font-size: 20px; }
   .card { padding: var(--s4); }
 }
@@ -102,14 +107,16 @@ th:first-child { position: sticky; left: 0; text-align: left; background: var(--
 <body>
 <div class="wrap">
   <header>
-    <h1>Weekly Funnel Report <span class="badge">Fake data</span></h1>
+    <h1>Weekly Funnel Report <span class="badge" id="fakeBadge" hidden>Fake data</span></h1>
     <div class="controls">
       <div class="seg" id="srcSeg" role="group" aria-label="Source tab"></div>
       <label class="ctl">Cohort week <select id="weekSel"></select></label>
+      <span class="asof" id="asOf"></span>
     </div>
   </header>
 
   <main>
+    <p class="notice" id="notice" role="status" hidden></p>
     <div class="kpis" id="kpis"></div>
 
     <section class="card" aria-labelledby="fTitle">
@@ -263,6 +270,12 @@ function renderMoves() {
 function render(announce) {
   syncControls(); renderKPIs(); renderFunnel(); renderMoves();
   if (announce) $('#live').textContent = 'Showing ' + scopeLabel() + ': ' + scope().added.toLocaleString() + ' leads added';
+}
+$('#fakeBadge').hidden = !D.fake;
+$('#asOf').textContent = 'Updated ' + new Date(D.asOf + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
+if (D.unmapped.length) {
+  $('#notice').hidden = false;
+  $('#notice').textContent = 'Not in the funnel yet: ' + D.unmapped.join(', ') + '. These statuses are counted as Added only until they are mapped to a stage.';
 }
 initControls();
 render(false);
