@@ -4,7 +4,7 @@ import sqlite3
 from collections import Counter
 from datetime import date
 
-from common import DB_PATH, HERE, TODAY, week_start
+from common import DB_PATH, HERE, week_start
 
 KEYS = ["added", "message_sent", "contacted", "replied", "meeting", "won", "no_response", "not_interested"]
 STAGES = [
@@ -19,6 +19,8 @@ STAGES = [
 
 def main():
     db = sqlite3.connect(DB_PATH)
+    meta = dict(db.execute("SELECT key, value FROM meta"))
+    as_of = date.fromisoformat(meta["as_of"])
     funnel = [
         {"week": w, "source": s, **dict(zip(KEYS, vals))}
         for w, s, *vals in db.execute(
@@ -32,9 +34,11 @@ def main():
         moves[(wk, source, to_status)] += 1
 
     weeks = sorted({r["week"] for r in funnel})
-    current = week_start(TODAY).isoformat()
+    current = week_start(as_of).isoformat()
     data = {
-        "asOf": TODAY.isoformat(),
+        "asOf": as_of.isoformat(),
+        "fake": meta["source"] == "fake",
+        "unmapped": [s for s in meta["unmapped"].split("|") if s],
         "currentWeek": current,
         "defaultWeek": "all",
         "weeks": weeks,
