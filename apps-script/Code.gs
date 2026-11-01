@@ -4,11 +4,15 @@
  * Reads the four lead tabs, replaces each lead with an anonymous keyed hash, and commits
  * one CSV per day to the GitHub repo. Names, phones, emails and notes never leave Google.
  *
- * Needs two Script properties (Project Settings > Script properties):
- *   ID_SALT       any long random string; keeps the hashed IDs unguessable
+ * Needs one Script property (Project Settings > Script properties):
  *   GITHUB_TOKEN  fine-grained token, this one repo only, "Contents: read and write"
+ * ID_SALT (the secret that keeps hashed IDs unguessable) is created automatically on the first run.
+ * Do not delete it later, or every lead gets a new ID and the history restarts.
+ *
+ * Works as a standalone project (opens the sheet by ID) or bound to the sheet itself.
  */
 const CONFIG = {
+  SHEET_ID: '1BCN3kJ1A1PgKWFAzPM-12lb0qGW7RwKMf8mKpZq0Otk',
   OWNER: 'AryamAlaw5',
   REPO: 'weekly-funnel-demo',
   BRANCH: 'main',
@@ -34,12 +38,14 @@ function onOpen() {
 
 function pushSnapshot() {
   const props = PropertiesService.getScriptProperties();
-  const salt = props.getProperty('ID_SALT');
   const token = props.getProperty('GITHUB_TOKEN');
-  if (!salt || !token) {
-    throw new Error('Set ID_SALT and GITHUB_TOKEN in Project Settings > Script properties.');
+  if (!token) throw new Error('Set GITHUB_TOKEN in Project Settings > Script properties.');
+  let salt = props.getProperty('ID_SALT');
+  if (!salt) {
+    salt = Utilities.getUuid() + Utilities.getUuid();
+    props.setProperty('ID_SALT', salt);
   }
-  const ss = SpreadsheetApp.getActiveSpreadsheet();
+  const ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.openById(CONFIG.SHEET_ID);
   const tz = ss.getSpreadsheetTimeZone();
   const today = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
 
