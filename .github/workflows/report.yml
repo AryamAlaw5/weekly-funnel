@@ -16,6 +16,9 @@ concurrency:
   group: pages
   cancel-in-progress: true
 
+env:
+  DEMO: "1"   # "1" = fake demo data, "0" = real sheet data
+
 jobs:
   build:
     runs-on: ubuntu-latest
@@ -26,8 +29,8 @@ jobs:
           python-version: "3.12"
       - name: Build database and report
         run: |
-          # real snapshots from the sheet if present, otherwise the fake-data demo
-          if ls data/snapshots/*.csv >/dev/null 2>&1; then
+          # real snapshots from the sheet unless DEMO is 1, otherwise the fake-data demo
+          if [ "$DEMO" != "1" ] && ls data/snapshots/*.csv >/dev/null 2>&1; then
             python ingest.py
           else
             python seed_fake_data.py
