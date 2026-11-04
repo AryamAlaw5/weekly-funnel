@@ -51,7 +51,7 @@ select:hover { border-color: #4a4560; }
 .notice { margin: 0 0 var(--s4); padding: var(--s3) var(--s4); border: 1px solid rgba(250,178,25,.45); border-radius: var(--radius);
   background: rgba(250,178,25,.08); color: var(--text-primary); }
 
-.kpis { display: grid; grid-template-columns: repeat(5, 1fr); gap: var(--s3); margin-bottom: var(--s4); }
+.kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: var(--s3); margin-bottom: var(--s4); }
 .kpi { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--s4); }
 .kpi .l { color: var(--text-secondary); font-size: 13px; }
 .kpi .v { font-size: 26px; font-weight: 600; color: var(--brand-soft); line-height: 1.2; margin: var(--s1) 0; font-variant-numeric: tabular-nums; }
@@ -94,7 +94,6 @@ th:first-child { position: sticky; left: 0; text-align: left; background: var(--
 
 @media (max-width: 760px) {
   .kpis { grid-template-columns: repeat(2, 1fr); }
-  .kpi:last-child { grid-column: 1 / -1; }
 }
 @media (max-width: 560px) {
   .asof { margin-left: 0; width: 100%; }
@@ -194,6 +193,7 @@ function renderKPIs() {
     ['Replied', fp(pct(t.replied, t.added)), t.replied + ' of ' + t.added],
     ['Meetings', t.meeting.toLocaleString(), fp(pct(t.meeting, t.added)) + ' of leads'],
     ['Won', t.won.toLocaleString(), fp(pct(t.won, t.added)) + ' of leads'],
+    ['Dead', t.not_interested.toLocaleString(), fp(pct(t.not_interested, t.added)) + ' of leads'],
   ];
   $('#kpis').innerHTML = tiles.map(([l, v, s]) =>
     `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${esc(s)}</div></div>`).join('');
