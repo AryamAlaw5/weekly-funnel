@@ -20,7 +20,7 @@ STATUS_MAP = {
     # statuses in the "Zid+Salla" sheet's Status dropdown (exact spelling; blank = Not Contacted)
     "Whatsapp": 1,         # WhatsApp message sent
     "Called": 1,           # reached by phone (same funnel stage as Whatsapp: Connected)
-    "Not interested": 3,   # answered, declined (same level as the older "Not Interested")
+    "Not interested": 0,   # Dead: shown in the Dead card, not counted in any funnel stage
     "Demo": 4,             # demo booked/held (counts as the Meeting stage)
 }
 
