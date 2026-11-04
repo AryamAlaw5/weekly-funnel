@@ -33,6 +33,8 @@ def main():
         wk = week_start(date.fromisoformat(changed_on)).isoformat()
         moves[(wk, source, to_status)] += 1
 
+    stage = dict(db.execute("SELECT status, stage_order FROM status_map"))
+    move_cols = sorted({t for (_, _, t) in moves if t != "Not Contacted"}, key=lambda t: (stage.get(t, 0), t))
     weeks = sorted({r["week"] for r in funnel})
     current = week_start(as_of).isoformat()
     data = {
@@ -46,6 +48,7 @@ def main():
         "keys": KEYS,
         "stages": STAGES,
         "funnel": funnel,
+        "moveCols": move_cols,
         "moves": [{"week": w, "source": s, "to": t, "n": n} for (w, s, t), n in sorted(moves.items())],
     }
     html = (HERE / "template.html").read_text().replace("__DATA__", json.dumps(data))
