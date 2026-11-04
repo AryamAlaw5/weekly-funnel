@@ -191,7 +191,7 @@ function renderKPIs() {
     ['Leads', t.added.toLocaleString(), scopeLabel()],
     ['Connected', fp(pct(t.message_sent, t.added)), t.message_sent + ' of ' + t.added],
     ['Replied', fp(pct(t.replied, t.added)), t.replied + ' of ' + t.added],
-    ['Meetings', t.meeting.toLocaleString(), fp(pct(t.meeting, t.added)) + ' of leads'],
+    ['Demos', t.meeting.toLocaleString(), fp(pct(t.meeting, t.added)) + ' of leads'],
     ['Won', t.won.toLocaleString(), fp(pct(t.won, t.added)) + ' of leads'],
     ['Dead', t.not_interested.toLocaleString(), fp(pct(t.not_interested, t.added)) + ' of leads'],
   ];
