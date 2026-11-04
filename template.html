@@ -255,7 +255,7 @@ $('#funnel').addEventListener('mousemove', e => {
 $('#funnel').addEventListener('mouseleave', hideTip);
 
 /* ---- movement table ---- */
-const MOVE_COLS = ['Message Sent', 'Contacted', 'Replied', 'Meeting', 'Won', 'No Response', 'Not Interested'];
+const MOVE_COLS = D.moveCols; // statuses exactly as written in the sheet
 function renderMoves() {
   const ms = D.moves.filter(m => state.source === 'All' || m.source === state.source);
   const weeks = [...new Set(ms.map(m => m.week))].sort().reverse();
