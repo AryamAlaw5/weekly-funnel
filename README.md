@@ -4,12 +4,14 @@ Weekly outreach funnel, grouped by the week of Date Added.
 
 ## How data flows
 
-1. **Sheet to repo.** `apps-script/Code.gs` runs inside the Sfere sheet. Once a day it hashes each lead
+1. **Sheet to repo.** `apps-script/Code.gs` runs as an Apps Script that reads the "Zid+Salla" sheet (tabs: zid, salla, Salla + Zid Linkedin). Once a day it hashes each lead
    into an anonymous ID and commits `data/snapshots/YYYY-MM-DD.csv` (lead_id, source_tab, date_added, status).
-   Names, phones, emails and notes never leave Google.
+   Names, phones, emails and notes never leave Google. The sheet has no Date Added column yet, so every lead is dated
+   2026-11-02 (`DEFAULT_DATE_ADDED`); add a `Date Added` column and real dates are used automatically.
+   Snapshots from the old Mawsool/Sfere sheet were removed from `data/snapshots/` on 2026-11-04 (still in git history).
 2. **Repo to report.** `.github/workflows/report.yml` runs on every push and daily:
-   - if `data/snapshots/*.csv` exists: `python ingest.py` builds `funnel.db` from the snapshots
-   - otherwise: `python seed_fake_data.py` builds a fake-data demo
+   - `DEMO=0`: `python ingest.py` builds `funnel.db` from `data/snapshots/*.csv` (the build fails if there are none)
+   - `DEMO=1`: `python seed_fake_data.py` builds a fake-data demo
    - then `python report.py` writes `site/index.html`, which is deployed to GitHub Pages.
 
 ## Status mapping
