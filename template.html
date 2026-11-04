@@ -190,7 +190,7 @@ function renderKPIs() {
   const t = scope();
   const tiles = [
     ['Leads added', t.added.toLocaleString(), scopeLabel()],
-    ['Message sent', fp(pct(t.message_sent, t.added)), t.message_sent + ' of ' + t.added],
+    ['Connected', fp(pct(t.message_sent, t.added)), t.message_sent + ' of ' + t.added],
     ['Replied', fp(pct(t.replied, t.added)), t.replied + ' of ' + t.added],
     ['Meetings', t.meeting.toLocaleString(), fp(pct(t.meeting, t.added)) + ' of added'],
     ['Won', t.won.toLocaleString(), fp(pct(t.won, t.added)) + ' of added'],
