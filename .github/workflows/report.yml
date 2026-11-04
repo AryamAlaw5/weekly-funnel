@@ -17,7 +17,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  DEMO: "1"   # "1" = fake demo data, "0" = real sheet data
+  DEMO: "0"   # "1" = fake demo data, "0" = real sheet data
 
 jobs:
   build:
