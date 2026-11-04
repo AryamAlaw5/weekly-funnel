@@ -1,5 +1,7 @@
 """Read funnel.db and write report.html (data embedded as JSON, rendered by template.html)."""
 import json
+import os
+from pathlib import Path
 import sqlite3
 from collections import Counter
 from datetime import date
@@ -51,10 +53,10 @@ def main():
         "moves": [{"week": w, "source": s, "to": t, "n": n} for (w, s, t), n in sorted(moves.items())],
     }
     html = (HERE / "template.html").read_text().replace("__DATA__", json.dumps(data))
-    out = HERE / "site" / "index.html"
+    out = Path(os.environ.get("REPORT_OUT", HERE / "site" / "index.html"))
     out.parent.mkdir(exist_ok=True)
     out.write_text(html)
-    print(f"wrote {out.relative_to(HERE)}: {len(funnel)} cohort rows, {len(weeks)} weeks")
+    print(f"wrote {out}: {len(funnel)} cohort rows, {len(weeks)} weeks")
 
 
 if __name__ == "__main__":
