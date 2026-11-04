@@ -1,7 +1,7 @@
 /**
- * Funnel snapshot exporter. Runs inside the Sfere sheet (Extensions > Apps Script).
+ * Funnel snapshot exporter. Runs as a Google Apps Script (Extensions > Apps Script) and reads the "Zid+Salla" sheet.
  *
- * Reads the four lead tabs, replaces each lead with an anonymous keyed hash, and commits
+ * Reads the lead tabs (Zid, Salla, LinkedIn), replaces each lead with an anonymous keyed hash, and commits
  * one CSV per day to the GitHub repo. Names, phones, emails and notes never leave Google.
  *
  * Needs one Script property (Project Settings > Script properties):
@@ -9,24 +9,28 @@
  * ID_SALT (the secret that keeps hashed IDs unguessable) is created automatically on the first run.
  * Do not delete it later, or every lead gets a new ID and the history restarts.
  *
- * Works as a standalone project (opens the sheet by ID) or bound to the sheet itself.
+ * Always opens the sheet named by CONFIG.SHEET_ID, even if this script is bound to a different file.
  */
 const CONFIG = {
-  SHEET_ID: '1BCN3kJ1A1PgKWFAzPM-12lb0qGW7RwKMf8mKpZq0Otk',
+  SHEET_ID: '1P6icIaxNl2jwX1J5v99pPo9Vrd2QIYdnUlWJQHdOht4', // "Zid+Salla" (replaced the old Mawsool/Sfere/Zid/Salla sheet)
   OWNER: 'AryamAlaw5',
   REPO: 'weekly-funnel-demo',
   BRANCH: 'main',
   FOLDER: 'data/snapshots',
   DAILY_HOUR: 6,
+  // The sheet has no Date Added column yet. Leads with no date (or no column) get this date.
+  DEFAULT_DATE_ADDED: '2026-11-02',
 };
 
-// Sheet tabs are matched by name prefix; columns are matched by header text.
+// Sheet tabs are matched by name prefix (case-insensitive); columns are matched by header text (case-insensitive).
+// 'keys' build the anonymous lead ID. Zid/Salla list one row per store per app, so identical store+website
+// rows are merged into ONE lead (the first non-blank status wins).
 const TABS = [
-  { match: 'mawsool', source: 'Mawsool', keys: ['Company', 'Person Name'] },
-  { match: 'sfere', source: 'Sfere', keys: ['Company', 'Person Name'] },
-  { match: 'zid', source: 'Zid', keys: ['Store', 'Website'] },
-  { match: 'salla', source: 'Salla', keys: ['Store Name', 'Website'] },
+  { match: 'zid', source: 'Zid', keys: ['store_name', 'store_website'], dedupe: true },
+  { match: 'salla + zid linkedin', source: 'LinkedIn', keys: ['name', 'linkedin'], dedupe: false },
+  { match: 'salla', source: 'Salla', keys: ['store_name', 'store_website'], dedupe: true },
 ];
+const DATE_HEADERS = ['date added', 'date_added'];
 
 function onOpen() {
   SpreadsheetApp.getUi()
@@ -45,7 +49,7 @@ function pushSnapshot() {
     salt = Utilities.getUuid() + Utilities.getUuid();
     props.setProperty('ID_SALT', salt);
   }
-  const ss = SpreadsheetApp.getActiveSpreadsheet() || SpreadsheetApp.openById(CONFIG.SHEET_ID);
+  const ss = SpreadsheetApp.openById(CONFIG.SHEET_ID);
   const tz = ss.getSpreadsheetTimeZone();
   const today = Utilities.formatDate(new Date(), tz, 'yyyy-MM-dd');
 
@@ -75,18 +79,21 @@ function buildRows_(ss, salt, tz) {
 
   ss.getSheets().forEach(function (sheet) {
     const name = sheet.getName();
-    const cfg = TABS.filter(function (t) { return name.trim().toLowerCase().indexOf(t.match) === 0; })[0];
+    const lname = name.trim().toLowerCase();
+    const cfg = TABS.slice().sort(function (a, b) { return b.match.length - a.match.length; })
+      .filter(function (t) { return lname.indexOf(t.match) === 0; })[0];
     if (!cfg) return;
     tabsSeen.push(cfg.source);
 
     const values = sheet.getDataRange().getValues();
     if (values.length < 2) return;
-    const header = values[0].map(function (h) { return String(h).trim(); });
+    const header = values[0].map(function (h) { return String(h).trim().toLowerCase(); });
     const col = {};
     header.forEach(function (h, i) { if (!(h in col)) col[h] = i; });
-    cfg.keys.concat(['Status', 'Date Added']).forEach(function (h) {
+    cfg.keys.concat(['status']).forEach(function (h) {
       if (!(h in col)) throw new Error('Tab "' + name + '" has no "' + h + '" column.');
     });
+    const dateCol = DATE_HEADERS.map(function (h) { return col[h]; }).filter(function (i) { return i !== undefined; })[0];
 
     const seen = {};
     for (let r = 1; r < values.length; r++) {
@@ -94,18 +101,34 @@ function buildRows_(ss, salt, tz) {
       const parts = cfg.keys.map(function (k) { return String(row[col[k]]).trim(); });
       if (parts.every(function (p) { return p === ''; })) continue;
 
-      const dateAdded = parseDate_(row[col['Date Added']], tz);
-      if (!dateAdded) {
-        skipped.push(cfg.source + ' row ' + (r + 1) + ' (bad Date Added)');
+      const rawDate = dateCol === undefined ? '' : row[dateCol];
+      let dateAdded;
+      if (String(rawDate).trim() === '') {
+        dateAdded = CONFIG.DEFAULT_DATE_ADDED; // no date entered yet
+      } else {
+        dateAdded = parseDate_(rawDate, tz);
+        if (!dateAdded) {
+          skipped.push(cfg.source + ' row ' + (r + 1) + ' (bad Date Added)');
+          continue;
+        }
+      }
+      const status = String(row[col['status']]).trim();
+
+      const base = [cfg.source].concat(parts).join('|').toLowerCase();
+      if (cfg.dedupe && base in seen) {
+        // same store listed again for another app: keep one lead, fill a missing status from the repeat
+        const prev = rows[seen[base]];
+        if (!prev[3] && status) prev[3] = status;
         continue;
       }
-      const status = String(row[col['Status']]).trim() || 'Not Contacted';
-
-      // identical keys in one tab get a #2, #3 ... suffix so they stay separate leads
-      const base = [cfg.source].concat(parts).join('|').toLowerCase();
-      seen[base] = (seen[base] || 0) + 1;
-      const idSource = seen[base] > 1 ? base + '#' + seen[base] : base;
-
+      // other tabs: identical keys get a #2, #3 ... suffix so they stay separate leads
+      let idSource = base;
+      if (!cfg.dedupe) {
+        seen[base] = (seen[base] || 0) + 1;
+        if (seen[base] > 1) idSource = base + '#' + seen[base];
+      } else {
+        seen[base] = rows.length;
+      }
       rows.push([hmacHex_(idSource, salt).slice(0, 16), cfg.source, dateAdded, status]);
     }
   });
@@ -114,6 +137,7 @@ function buildRows_(ss, salt, tz) {
   if (missing.length) {
     throw new Error('Could not find tab(s): ' + missing.map(function (t) { return t.source; }).join(', '));
   }
+  rows.forEach(function (r) { if (!r[3]) r[3] = 'Not Contacted'; });
   return { rows: rows, skipped: skipped };
 }
 
