@@ -9,7 +9,7 @@ from common import DB_PATH, HERE, week_start
 KEYS = ["added", "message_sent", "contacted", "replied", "meeting", "won", "no_response", "not_interested"]
 STAGES = [
     {"key": "added", "label": "Added"},
-    {"key": "message_sent", "label": "Message Sent"},
+    {"key": "message_sent", "label": "Connected"},
     {"key": "contacted", "label": "Contacted"},
     {"key": "replied", "label": "Replied"},
     {"key": "meeting", "label": "Meeting"},
