@@ -40,6 +40,9 @@ jobs:
             exit 1
           fi
           python report.py
+          # Sample page with FAKE data, always published at /demo/ and labeled "Fake data". The real report stays at the main link.
+          python seed_fake_data.py
+          REPORT_OUT=site/demo/index.html python report.py
       - uses: actions/configure-pages@v5
       - uses: actions/upload-pages-artifact@v3
         with:
