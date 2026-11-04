@@ -204,13 +204,19 @@ const WIDE = 860;
 let funnelMode = null;
 const modeNow = () => $('#funnel').clientWidth >= WIDE ? 'wide' : 'narrow';
 
+function deadItem(t) {
+  const v = t.not_interested;
+  return `<li class="fitem"><div class="fhead"><span class="fname">Dead</span><span class="fval">${v.toLocaleString()}<b>${fp(pct(v, t.added))}</b></span></div>`
+    + `<div class="ftrack"><div class="fbar" style="width:${pct(v, t.added)}%;background:#d9626f"></div></div></li>`;
+}
+
 function funnelList(t) {
   return '<ul class="flist">' + D.stages.map((s, i) => {
     const v = t[s.key], prev = i ? D.stages[i - 1] : null;
     return `<li class="fitem"><div class="fhead"><span class="fname">${s.label}</span><span class="fval">${v.toLocaleString()}<b>${fp(pct(v, t.added))}</b></span></div>`
       + `<div class="ftrack"><div class="fbar" style="width:${pct(v, t.added)}%;background:var(--stage-${i + 1})"></div></div>`
       + (prev ? `<div class="fstep">${fp(pct(v, t[prev.key]))} of ${prev.label}</div>` : '') + '</li>';
-  }).join('') + '</ul>';
+  }).join('') + deadItem(t) + '</ul>';
 }
 
 function funnelSvg(t) {
@@ -230,10 +236,15 @@ function funnelSvg(t) {
     if (i) out += `<text x="${mid}" y="${H - 8}" text-anchor="middle">${fp(pct(v, t[D.stages[i - 1].key]))} of previous</text>`;
   });
   const last = t[D.stages[n - 1].key];
-  out += `<circle cx="${x1 + 44}" cy="${cy}" r="36" fill="var(--surface-1)" stroke="var(--stage-1)" stroke-width="2"/>`
-       + `<text class="cnt" x="${x1 + 44}" y="${cy + 5}" text-anchor="middle">${last.toLocaleString()}</text>`;
+  const dead = t.not_interested, dcy = 262;
+  out += `<text x="${x1 + 44}" y="${cy - 46}" text-anchor="middle">Won</text>`
+       + `<circle cx="${x1 + 44}" cy="${cy}" r="36" fill="var(--surface-1)" stroke="var(--stage-1)" stroke-width="2"/>`
+       + `<text class="cnt" x="${x1 + 44}" y="${cy + 5}" text-anchor="middle">${last.toLocaleString()}</text>`
+       + `<circle cx="${x1 + 44}" cy="${dcy}" r="26" fill="var(--surface-1)" stroke="#d9626f" stroke-width="2"/>`
+       + `<text class="cnt" x="${x1 + 44}" y="${dcy + 5}" text-anchor="middle">${dead.toLocaleString()}</text>`
+       + `<text x="${x1 + 44}" y="${dcy + 44}" text-anchor="middle">Dead (${fp(pct(dead, t.added))})</text>`;
   const sr = '<ul class="sr-only">' + D.stages.map((s, i) =>
-    `<li>${s.label}: ${t[s.key].toLocaleString()} (${fp(pct(t[s.key], t.added))} of added)</li>`).join('') + '</ul>';
+    `<li>${s.label}: ${t[s.key].toLocaleString()} (${fp(pct(t[s.key], t.added))} of added)</li>`).join('') + `<li>Dead: ${t.not_interested.toLocaleString()} (${fp(pct(t.not_interested, t.added))} of added)</li>` + '</ul>';
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" aria-hidden="true">${out}</svg>${sr}`;
 }
 
