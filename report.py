@@ -10,7 +10,6 @@ KEYS = ["added", "message_sent", "contacted", "replied", "meeting", "won", "no_r
 STAGES = [
     {"key": "added", "label": "Leads"},
     {"key": "message_sent", "label": "Connected"},
-    {"key": "contacted", "label": "Contacted"},
     {"key": "replied", "label": "Replied"},
     {"key": "meeting", "label": "Meeting"},
     {"key": "won", "label": "Won"},
