@@ -1,4 +1,4 @@
-"""Build funnel.db with fake leads shaped like the Sfere sheet (4 tabs, weekly Date Added cohorts).
+"""Build funnel.db with FAKE leads shaped like the Zid+Salla sheet (Zid, Salla, LinkedIn; weekly Date Added cohorts).
 
 Each lead is simulated day by day from its Date Added to TODAY, and every day is
 written to status_snapshots, the same rows the real sync would append.
@@ -6,29 +6,34 @@ written to status_snapshots, the same rows the real sync would append.
 import hashlib
 import random
 import sqlite3
-from datetime import timedelta
+from datetime import date, timedelta
 
-from common import DB_PATH, HERE, SOURCES, STATUS_MAP, TODAY, week_start
+from common import DB_PATH, HERE, STATUS_MAP, week_start
+
+TODAY = date.today()
+SOURCES = ["Zid", "Salla", "LinkedIn"]
 
 random.seed(42)
 
 WEEKS_BACK = 6  # cohorts: the current week plus 5 earlier weeks
 # per-tab multiplier on forward progress, so the tab filter shows differences
-TAB_SKILL = {"Mawsool": 1.0, "Sfere": 1.25, "Zid": 0.8, "Salla": 0.65}
-TAB_WEIGHT = {"Mawsool": 0.3, "Sfere": 0.3, "Zid": 0.2, "Salla": 0.2}
+TAB_SKILL = {"Zid": 0.9, "Salla": 0.7, "LinkedIn": 1.3}
+TAB_WEIGHT = {"Zid": 0.45, "Salla": 0.35, "LinkedIn": 0.2}
 
 # status -> [(next status, daily probability, is_forward)]
+# Uses the sheet's dropdown (Whatsapp, Called, Demo, Not interested) plus Replied and Won so every stage shows up.
 TRANSITIONS = {
-    "Not Contacted": [("Message Sent", 0.30, True)],
-    "Message Sent": [("Contacted", 0.06, True), ("No Response", 0.05, False)],
-    "Contacted": [("Replied", 0.045, True), ("No Response", 0.03, False)],
-    "Replied": [("Meeting", 0.06, True), ("Not Interested", 0.06, False)],
-    "Meeting": [("Won", 0.035, True), ("Not Interested", 0.04, False)],
+    "Not Contacted": [("Whatsapp", 0.30, True), ("Called", 0.08, True)],
+    "Whatsapp": [("Called", 0.06, True), ("Replied", 0.05, True), ("Not interested", 0.04, False)],
+    "Called": [("Replied", 0.06, True), ("Not interested", 0.04, False)],
+    "Replied": [("Demo", 0.06, True), ("Not interested", 0.05, False)],
+    "Demo": [("Won", 0.04, True), ("Not interested", 0.04, False)],
 }
 
 PREFIX = ["Al Noor", "Najd", "Riyadh", "Gulf", "Desert", "Oasis", "Falcon", "Saffron", "Amber",
           "Tamar", "Qasr", "Layali", "Rimal", "Hijaz", "Jawhara", "Bayan", "Sahab", "Dar Al"]
 SUFFIX_B2B = ["Trading", "Electronics", "Motors", "Foods", "Group", "Retail", "Industries", "Holding"]
+SUFFIX_END = ["Store", "House", "Shop", "Co", "Hub", "Spot", "Line", "Box"]
 SUFFIX_STORE = ["Oud", "Perfumes", "Fashion", "Coffee", "Abayas", "Gadgets", "Sweets", "Beauty", "Kids"]
 FIRST = ["Ahmed", "Mohammed", "Fahad", "Sara", "Noura", "Khalid", "Maha", "Omar", "Layla", "Yousef",
          "Reem", "Faisal", "Huda", "Talal", "Abdullah", "Lama"]
@@ -37,12 +42,12 @@ LAST = ["Alharbi", "Alqahtani", "Alotaibi", "Alshehri", "Aldosari", "Almutairi",
 
 def make_lead(tab, used):
     while True:
-        if tab in ("Mawsool", "Sfere"):
+        if tab == "LinkedIn":
             company = f"{random.choice(PREFIX)} {random.choice(SUFFIX_B2B)}"
             contact = f"{random.choice(FIRST)} {random.choice(LAST)}"
             key = f"{company}|{contact}"
         else:
-            company = f"{random.choice(PREFIX)} {random.choice(SUFFIX_STORE)}"
+            company = f"{random.choice(PREFIX)} {random.choice(SUFFIX_STORE)} {random.choice(SUFFIX_END)}"
             contact = None
             key = f"{company.lower().replace(' ', '')}.sa"
         lead_id = hashlib.sha1(f"{tab}|{key}".encode()).hexdigest()[:12]
