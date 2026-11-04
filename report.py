@@ -11,7 +11,7 @@ STAGES = [
     {"key": "added", "label": "Leads"},
     {"key": "message_sent", "label": "Connected"},
     {"key": "replied", "label": "Replied"},
-    {"key": "meeting", "label": "Meeting"},
+    {"key": "meeting", "label": "Demo"},
     {"key": "won", "label": "Won"},
 ]
 
