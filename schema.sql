@@ -23,7 +23,7 @@ CREATE TABLE meta (
 -- One row per lead, current state (what the sheet shows today).
 CREATE TABLE leads (
   lead_id    TEXT PRIMARY KEY,      -- stable hash of tab + company + contact/website
-  source_tab TEXT NOT NULL,         -- Mawsool | Sfere | Zid | Salla
+  source_tab TEXT NOT NULL,         -- Zid | Salla | LinkedIn (demo data uses Mawsool | Sfere | Zid | Salla)
   company    TEXT,                  -- fake data only; real snapshots are anonymous
   contact    TEXT,
   status     TEXT NOT NULL REFERENCES status_map(status),
@@ -52,8 +52,8 @@ SELECT
   COUNT(*) FILTER (WHERE m.stage_order >= 3)        AS replied,
   COUNT(*) FILTER (WHERE m.stage_order >= 4)        AS meeting,
   COUNT(*) FILTER (WHERE m.stage_order >= 5)        AS won,
-  COUNT(*) FILTER (WHERE l.status = 'No Response')  AS no_response,
-  COUNT(*) FILTER (WHERE l.status = 'Not Interested') AS not_interested
+  COUNT(*) FILTER (WHERE LOWER(l.status) = 'no response')  AS no_response,
+  COUNT(*) FILTER (WHERE LOWER(l.status) = 'not interested') AS not_interested
 FROM leads l
 JOIN status_map m ON m.status = l.status
 GROUP BY l.week_start, l.source_tab;
