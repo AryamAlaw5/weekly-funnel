@@ -189,11 +189,11 @@ $('#weekSel').addEventListener('change', e => { state.week = e.target.value; ren
 function renderKPIs() {
   const t = scope();
   const tiles = [
-    ['Leads added', t.added.toLocaleString(), scopeLabel()],
+    ['Leads', t.added.toLocaleString(), scopeLabel()],
     ['Connected', fp(pct(t.message_sent, t.added)), t.message_sent + ' of ' + t.added],
     ['Replied', fp(pct(t.replied, t.added)), t.replied + ' of ' + t.added],
-    ['Meetings', t.meeting.toLocaleString(), fp(pct(t.meeting, t.added)) + ' of added'],
-    ['Won', t.won.toLocaleString(), fp(pct(t.won, t.added)) + ' of added'],
+    ['Meetings', t.meeting.toLocaleString(), fp(pct(t.meeting, t.added)) + ' of leads'],
+    ['Won', t.won.toLocaleString(), fp(pct(t.won, t.added)) + ' of leads'],
   ];
   $('#kpis').innerHTML = tiles.map(([l, v, s]) =>
     `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${esc(s)}</div></div>`).join('');
@@ -269,13 +269,13 @@ function renderMoves() {
 
 function render(announce) {
   syncControls(); renderKPIs(); renderFunnel(); renderMoves();
-  if (announce) $('#live').textContent = 'Showing ' + scopeLabel() + ': ' + scope().added.toLocaleString() + ' leads added';
+  if (announce) $('#live').textContent = 'Showing ' + scopeLabel() + ': ' + scope().added.toLocaleString() + ' leads';
 }
 $('#fakeBadge').hidden = !D.fake;
 $('#asOf').textContent = 'Updated ' + new Date(D.asOf + 'T00:00:00Z').toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' });
 if (D.unmapped.length) {
   $('#notice').hidden = false;
-  $('#notice').textContent = 'Not in the funnel yet: ' + D.unmapped.join(', ') + '. These statuses are counted as Added only until they are mapped to a stage.';
+  $('#notice').textContent = 'Not in the funnel yet: ' + D.unmapped.join(', ') + '. These statuses are counted as Leads only until they are mapped to a stage.';
 }
 initControls();
 render(false);
