@@ -29,11 +29,15 @@ jobs:
           python-version: "3.12"
       - name: Build database and report
         run: |
-          # real snapshots from the sheet unless DEMO is 1, otherwise the fake-data demo
-          if [ "$DEMO" != "1" ] && ls data/snapshots/*.csv >/dev/null 2>&1; then
+          # DEMO=1 builds the fake-data demo. DEMO=0 builds ONLY from real sheet snapshots and fails if there are none,
+          # so fake data can never appear on the page by accident.
+          if [ "$DEMO" = "1" ]; then
+            python seed_fake_data.py
+          elif ls data/snapshots/*.csv >/dev/null 2>&1; then
             python ingest.py
           else
-            python seed_fake_data.py
+            echo "DEMO is 0 but data/snapshots has no CSV files" >&2
+            exit 1
           fi
           python report.py
       - uses: actions/configure-pages@v5
