@@ -16,12 +16,21 @@ SNAP_DIR = Path(os.environ.get("SNAPSHOT_DIR", HERE / "data" / "snapshots"))
 COLUMNS = ["lead_id", "source_tab", "date_added", "status"]
 
 
+CANON = {k.lower(): k for k in STATUS_MAP}
+
+
+def canon(status):
+    """Match a status to the map ignoring case/extra spaces; unknown statuses stay as written (and get flagged)."""
+    s = " ".join(status.split())
+    return CANON.get(s.lower(), s)
+
+
 def read_snapshot(path):
     with open(path, newline="", encoding="utf-8") as f:
         reader = csv.DictReader(f)
         if reader.fieldnames != COLUMNS:
             sys.exit(f"{path.name}: expected columns {COLUMNS}, found {reader.fieldnames}")
-        return [(r["lead_id"], r["source_tab"], r["date_added"], r["status"].strip()) for r in reader]
+        return [(r["lead_id"], r["source_tab"], r["date_added"], canon(r["status"])) for r in reader]
 
 
 def main():
