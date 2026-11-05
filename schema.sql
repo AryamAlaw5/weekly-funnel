@@ -50,7 +50,8 @@ SELECT
   COUNT(*) FILTER (WHERE m.stage_order >= 3)        AS replied,
   COUNT(*) FILTER (WHERE m.stage_order >= 4)        AS meeting,
   COUNT(*) FILTER (WHERE m.stage_order >= 5)        AS won,
-  COUNT(*) FILTER (WHERE l.has_note = 1 OR LOWER(l.status) = 'not interested') AS dead
+  COUNT(*) FILTER (WHERE LOWER(l.status) = 'not interested')                    AS dead,
+  COUNT(*) FILTER (WHERE LOWER(l.status) = 'not interested' AND l.has_note = 1) AS dead_with_note
 FROM leads l
 JOIN status_map m ON m.status = l.status
 GROUP BY l.first_seen, l.source_tab;
