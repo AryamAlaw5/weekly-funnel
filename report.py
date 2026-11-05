@@ -4,9 +4,9 @@ import os
 import sqlite3
 from pathlib import Path
 
-from common import DB_PATH, HERE, WINDOWS
+from common import DB_PATH, HERE, SHEET_URL, WINDOWS
 
-KEYS = ["added", "message_sent", "contacted", "replied", "meeting", "won", "dead"]
+KEYS = ["added", "message_sent", "contacted", "replied", "meeting", "won", "dead", "dead_with_note"]
 STAGES = [
     {"key": "added", "label": "Leads"},
     {"key": "message_sent", "label": "Connected"},
@@ -22,7 +22,7 @@ def main():
     funnel = [
         {"day": d, "source": s, **dict(zip(KEYS, vals))}
         for d, s, *vals in db.execute(
-            f"SELECT first_seen, source_tab, {', '.join(KEYS)} FROM v_funnel_by_day ORDER BY first_seen")
+            f"SELECT first_seen, source_tab, {', '.join(KEYS)} FROM v_funnel_by_day WHERE source_tab <> 'LinkedIn' ORDER BY first_seen")
     ]
 
     heyreach_file = HERE / "data" / "heyreach.json"
@@ -31,6 +31,7 @@ def main():
         "fake": meta["source"] == "fake",
         "unmapped": [s for s in meta["unmapped"].split("|") if s],
         "windows": WINDOWS,
+        "sheetUrl": SHEET_URL,
         "sources": sorted({r["source"] for r in funnel}),
         "keys": KEYS,
         "stages": STAGES,
