@@ -2,6 +2,7 @@ from pathlib import Path
 
 HERE = Path(__file__).parent
 DB_PATH = HERE / "funnel.db"
+SHEET_URL = "https://docs.google.com/spreadsheets/d/1P6icIaxNl2jwX1J5v99pPo9Vrd2QIYdnUlWJQHdOht4/edit"
 WINDOWS = [7, 14, 30]  # "last N days" buttons; "All time" is always added
 
 # status -> furthest funnel stage reached (loaded into the status_map table)
