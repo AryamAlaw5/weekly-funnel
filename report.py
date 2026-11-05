@@ -22,7 +22,7 @@ def main():
     funnel = [
         {"day": d, "source": s, **dict(zip(KEYS, vals))}
         for d, s, *vals in db.execute(
-            f"SELECT first_seen, source_tab, {', '.join(KEYS)} FROM v_funnel_by_day WHERE source_tab <> 'LinkedIn' ORDER BY first_seen")
+            f"SELECT first_seen, source_tab, {', '.join(KEYS)} FROM v_funnel_by_day ORDER BY first_seen")
     ]
 
     heyreach_file = HERE / "data" / "heyreach.json"
