@@ -1,0 +1,48 @@
+{
+ "as_of": "2026-11-05",
+ "note": "Aggregate counts only, from HeyReach campaigns 1 NOV - EN and 1 NOV - AR (read-only). No lead data.",
+ "campaigns": [
+  {
+   "name": "1 NOV - EN",
+   "status": "IN_PROGRESS",
+   "leads": 33
+  },
+  {
+   "name": "1 NOV - AR",
+   "status": "IN_PROGRESS",
+   "leads": 17
+  }
+ ],
+ "daily": {
+  "2026-11-01": {
+   "connections_sent": 27,
+   "connections_accepted": 5,
+   "messages_started": 0,
+   "replies": 0
+  },
+  "2026-11-02": {
+   "connections_sent": 23,
+   "connections_accepted": 7,
+   "messages_started": 5,
+   "replies": 0
+  },
+  "2026-11-03": {
+   "connections_sent": 0,
+   "connections_accepted": 0,
+   "messages_started": 7,
+   "replies": 0
+  },
+  "2026-11-04": {
+   "connections_sent": 0,
+   "connections_accepted": 1,
+   "messages_started": 1,
+   "replies": 0
+  },
+  "2026-11-05": {
+   "connections_sent": 0,
+   "connections_accepted": 1,
+   "messages_started": 0,
+   "replies": 0
+  }
+ }
+}
