@@ -2,7 +2,9 @@
  * Funnel snapshot exporter. Runs as a Google Apps Script (Extensions > Apps Script) and reads the "Zid+Salla" sheet.
  *
  * Reads the lead tabs (Zid, Salla, LinkedIn), replaces each lead with an anonymous keyed hash, and commits
- * one CSV per day to the GitHub repo. Names, phones, emails and notes never leave Google.
+ * one CSV per day (lead_id, source_tab, status, has_note) to the GitHub repo. has_note is 1 when the Notes cell is filled;
+ * the note text itself never leaves Google. The sheet needs no date column: the report
+ * dates a lead by the first daily snapshot it appears in. Names, phones, emails and notes never leave Google.
  *
  * Needs one Script property (Project Settings > Script properties):
  *   GITHUB_TOKEN  fine-grained token, this one repo only, "Contents: read and write"
@@ -18,8 +20,6 @@ const CONFIG = {
   BRANCH: 'main',
   FOLDER: 'data/snapshots',
   DAILY_HOUR: 6,
-  // The sheet has no Date Added column yet. Leads with no date (or no column) get this date.
-  DEFAULT_DATE_ADDED: '2026-11-02',
 };
 
 // Sheet tabs are matched by name prefix (case-insensitive); columns are matched by header text (case-insensitive).
@@ -30,7 +30,6 @@ const TABS = [
   { match: 'salla + zid linkedin', source: 'LinkedIn', keys: ['name', 'linkedin'], dedupe: false },
   { match: 'salla', source: 'Salla', keys: ['store_name', 'store_website'], dedupe: true },
 ];
-const DATE_HEADERS = ['date added', 'date_added'];
 
 function onOpen() {
   SpreadsheetApp.getUi()
@@ -93,7 +92,6 @@ function buildRows_(ss, salt, tz) {
     cfg.keys.concat(['status']).forEach(function (h) {
       if (!(h in col)) throw new Error('Tab "' + name + '" has no "' + h + '" column.');
     });
-    const dateCol = DATE_HEADERS.map(function (h) { return col[h]; }).filter(function (i) { return i !== undefined; })[0];
 
     const seen = {};
     for (let r = 1; r < values.length; r++) {
@@ -101,24 +99,15 @@ function buildRows_(ss, salt, tz) {
       const parts = cfg.keys.map(function (k) { return String(row[col[k]]).trim(); });
       if (parts.every(function (p) { return p === ''; })) continue;
 
-      const rawDate = dateCol === undefined ? '' : row[dateCol];
-      let dateAdded;
-      if (String(rawDate).trim() === '') {
-        dateAdded = CONFIG.DEFAULT_DATE_ADDED; // no date entered yet
-      } else {
-        dateAdded = parseDate_(rawDate, tz);
-        if (!dateAdded) {
-          skipped.push(cfg.source + ' row ' + (r + 1) + ' (bad Date Added)');
-          continue;
-        }
-      }
       const status = String(row[col['status']]).trim();
+      const hasNote = col['notes'] !== undefined && String(row[col['notes']]).trim() !== '' ? 1 : 0;
 
       const base = [cfg.source].concat(parts).join('|').toLowerCase();
       if (cfg.dedupe && base in seen) {
         // same store listed again for another app: keep one lead, fill a missing status from the repeat
         const prev = rows[seen[base]];
-        if (!prev[3] && status) prev[3] = status;
+        if (!prev[2] && status) prev[2] = status;
+        if (hasNote) prev[3] = 1;
         continue;
       }
       // other tabs: identical keys get a #2, #3 ... suffix so they stay separate leads
@@ -129,7 +118,7 @@ function buildRows_(ss, salt, tz) {
       } else {
         seen[base] = rows.length;
       }
-      rows.push([hmacHex_(idSource, salt).slice(0, 16), cfg.source, dateAdded, status]);
+      rows.push([hmacHex_(idSource, salt).slice(0, 16), cfg.source, status, hasNote]);
     }
   });
 
@@ -137,29 +126,8 @@ function buildRows_(ss, salt, tz) {
   if (missing.length) {
     throw new Error('Could not find tab(s): ' + missing.map(function (t) { return t.source; }).join(', '));
   }
-  rows.forEach(function (r) { if (!r[3]) r[3] = 'Not Contacted'; });
+  rows.forEach(function (r) { if (!r[2]) r[2] = 'Not Contacted'; });
   return { rows: rows, skipped: skipped };
-}
-
-const MONTHS_ = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
-
-// Text dates ("1 Nov 2026", "Nov 1, 2026", "2026-11-01") are read as written, with no time zone involved.
-function parseDate_(v, tz) {
-  if (v instanceof Date) return isNaN(v) ? null : Utilities.formatDate(v, tz, 'yyyy-MM-dd');
-  const s = String(v).trim();
-  if (!s) return null;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s;
-
-  let day, mon, year;
-  let m = s.match(/^(\d{1,2})[\s\-\/]+([A-Za-z]{3,9})\.?[\s\-\/,]+(\d{4})$/);
-  if (m) { day = m[1]; mon = m[2]; year = m[3]; }
-  else if ((m = s.match(/^([A-Za-z]{3,9})\.?\s+(\d{1,2}),?\s+(\d{4})$/))) { mon = m[1]; day = m[2]; year = m[3]; }
-  if (!m) return null;
-
-  const month = MONTHS_[mon.slice(0, 3).toLowerCase()];
-  const d = Number(day);
-  if (!month || d < 1 || d > 31) return null;
-  return year + '-' + ('0' + month).slice(-2) + '-' + ('0' + d).slice(-2);
 }
 
 function hmacHex_(value, key) {
@@ -170,7 +138,7 @@ function hmacHex_(value, key) {
 
 function toCsv_(rows) {
   const esc = function (v) { return /[",\n]/.test(v) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v); };
-  return [['lead_id', 'source_tab', 'date_added', 'status']].concat(rows)
+  return [['lead_id', 'source_tab', 'status', 'has_note']].concat(rows)
     .map(function (r) { return r.map(esc).join(','); })
     .join('\n') + '\n';
 }
