@@ -275,9 +275,8 @@ function renderDead() {
   $('#deadCard').hidden = isLI();
   if (isLI()) return;
   const t = scope();
-  $('#deadBox').innerHTML = `<div class="kpi"><div class="l">Dead leads (Not interested)</div><div class="v">${t.dead.toLocaleString()}</div>`
-    + `<div class="s">${fp(pct(t.dead, t.added))} of ${t.added.toLocaleString()} leads \u00b7 ${t.dead_with_note.toLocaleString()} with a note \u00b7 ${esc(scopeLabel())}</div></div>`
-    + `<a class="kpi" href="${esc(D.sheetUrl)}" target="_blank" rel="noopener"><div class="l">Why are they dead?</div><div class="v">Notes</div><div class="s">Open the sheet and read the Notes column</div></a>`;
+  $('#deadBox').innerHTML = `<div class="kpi"><div class="l">Dead leads (Not interested)</div><div class="v">${t.dead.toLocaleString()}</div>`</div>`
+    + `<a class="kpi" href="${esc(D.sheetUrl)}" target="_blank" rel="noopener"><div class="l">Why are they dead?</div><div class="v">Notes</div></a>`;
 }
 
 function render(announce) {
