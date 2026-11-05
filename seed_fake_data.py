@@ -80,10 +80,10 @@ def main():
             first = TODAY - timedelta(days=random.randrange(DAYS_BACK))
             lead_id = make_lead(tab, used)
             history = simulate(first, tab)
-            leads.append((lead_id, tab, history[-1][1], first.isoformat(), TODAY.isoformat()))
+            leads.append((lead_id, tab, history[-1][1], 0, first.isoformat(), TODAY.isoformat()))
             snapshots += [(d.isoformat(), lead_id, st) for d, st in history]
 
-    db.executemany("INSERT INTO leads VALUES (?,?,?,?,?)", leads)
+    db.executemany("INSERT INTO leads VALUES (?,?,?,?,?,?)", leads)
     db.executemany("INSERT INTO status_snapshots VALUES (?,?,?)", snapshots)
     db.commit()
     print(f"{len(leads)} leads, {len(snapshots)} snapshots -> {DB_PATH.name}")
