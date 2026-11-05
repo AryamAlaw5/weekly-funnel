@@ -29,6 +29,7 @@ const TABS = [
   { match: 'zid', source: 'Zid', keys: ['store_name', 'store_website'], dedupe: true },
   { match: 'salla + zid linkedin', source: 'LinkedIn', keys: ['name', 'linkedin'], dedupe: false },
   { match: 'salla', source: 'Salla', keys: ['store_name', 'store_website'], dedupe: true },
+  { match: 'stores + ads app', source: 'Stores + Ads', keys: ['store_name', 'domain'], dedupe: true },
 ];
 
 function onOpen() {
