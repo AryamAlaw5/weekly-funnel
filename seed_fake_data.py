@@ -1,6 +1,6 @@
-"""Build funnel.db with FAKE leads shaped like the Zid+Salla sheet (Zid, Salla, LinkedIn; weekly Date Added cohorts).
+"""Build funnel.db with FAKE leads shaped like the Zid+Salla sheet (Zid, Salla, LinkedIn; first seen over the last 45 days).
 
-Each lead is simulated day by day from its Date Added to TODAY, and every day is
+Each lead is simulated day by day from its first_seen day to TODAY, and every day is
 written to status_snapshots, the same rows the real sync would append.
 """
 import hashlib
@@ -8,17 +8,17 @@ import random
 import sqlite3
 from datetime import date, timedelta
 
-from common import DB_PATH, HERE, STATUS_MAP, week_start
+from common import DB_PATH, HERE, STATUS_MAP
 
 TODAY = date.today()
 SOURCES = ["Zid", "Salla", "LinkedIn"]
 
 random.seed(42)
 
-WEEKS_BACK = 6  # cohorts: the current week plus 5 earlier weeks
+DAYS_BACK = 45  # leads are first seen on a random day in the last 45 days
+LEADS_PER_TAB = {"Zid": 120, "Salla": 90, "LinkedIn": 60}
 # per-tab multiplier on forward progress, so the tab filter shows differences
 TAB_SKILL = {"Zid": 0.9, "Salla": 0.7, "LinkedIn": 1.3}
-TAB_WEIGHT = {"Zid": 0.45, "Salla": 0.35, "LinkedIn": 0.2}
 
 # status -> [(next status, daily probability, is_forward)]
 # Uses the sheet's dropdown (Whatsapp, Called, Demo, Not interested) plus Replied and Won so every stage shows up.
@@ -43,21 +43,17 @@ LAST = ["Alharbi", "Alqahtani", "Alotaibi", "Alshehri", "Aldosari", "Almutairi",
 def make_lead(tab, used):
     while True:
         if tab == "LinkedIn":
-            company = f"{random.choice(PREFIX)} {random.choice(SUFFIX_B2B)}"
-            contact = f"{random.choice(FIRST)} {random.choice(LAST)}"
-            key = f"{company}|{contact}"
+            key = f"{random.choice(PREFIX)} {random.choice(SUFFIX_B2B)}|{random.choice(FIRST)} {random.choice(LAST)}"
         else:
-            company = f"{random.choice(PREFIX)} {random.choice(SUFFIX_STORE)} {random.choice(SUFFIX_END)}"
-            contact = None
-            key = f"{company.lower().replace(' ', '')}.sa"
+            key = f"{random.choice(PREFIX)} {random.choice(SUFFIX_STORE)} {random.choice(SUFFIX_END)}"
         lead_id = hashlib.sha1(f"{tab}|{key}".encode()).hexdigest()[:12]
         if lead_id not in used:
             used.add(lead_id)
-            return lead_id, company, contact
+            return lead_id
 
 
 def simulate(added, tab):
-    """Return [(date, status)] from the day added through TODAY."""
+    """Return [(date, status)] from first_seen through TODAY."""
     status, history, day = "Not Contacted", [], added
     while day <= TODAY:
         history.append((day, status))
@@ -78,23 +74,16 @@ def main():
     db.executemany("INSERT INTO status_map VALUES (?, ?)", STATUS_MAP.items())
     db.executemany("INSERT INTO meta VALUES (?, ?)", [("source", "fake"), ("as_of", TODAY.isoformat()), ("unmapped", "")])
 
-    this_week = week_start(TODAY)
     used, leads, snapshots = set(), [], []
-    for w in range(WEEKS_BACK):
-        wk = this_week - timedelta(weeks=WEEKS_BACK - 1 - w)
-        last_day = min(wk + timedelta(days=6), TODAY)
-        n_days = (last_day - wk).days + 1
-        total = random.randint(70, 110) if wk < this_week else 45
-        for tab in SOURCES:
-            for _ in range(round(total * TAB_WEIGHT[tab])):
-                added = wk + timedelta(days=random.randrange(n_days))
-                lead_id, company, contact = make_lead(tab, used)
-                history = simulate(added, tab)
-                leads.append((lead_id, tab, company, contact, history[-1][1],
-                              added.isoformat(), wk.isoformat(), TODAY.isoformat()))
-                snapshots += [(d.isoformat(), lead_id, s) for d, s in history]
+    for tab in SOURCES:
+        for _ in range(LEADS_PER_TAB[tab]):
+            first = TODAY - timedelta(days=random.randrange(DAYS_BACK))
+            lead_id = make_lead(tab, used)
+            history = simulate(first, tab)
+            leads.append((lead_id, tab, history[-1][1], first.isoformat(), TODAY.isoformat()))
+            snapshots += [(d.isoformat(), lead_id, st) for d, st in history]
 
-    db.executemany("INSERT INTO leads VALUES (?,?,?,?,?,?,?,?)", leads)
+    db.executemany("INSERT INTO leads VALUES (?,?,?,?,?)", leads)
     db.executemany("INSERT INTO status_snapshots VALUES (?,?,?)", snapshots)
     db.commit()
     print(f"{len(leads)} leads, {len(snapshots)} snapshots -> {DB_PATH.name}")
