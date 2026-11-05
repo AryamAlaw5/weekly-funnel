@@ -1,6 +1,7 @@
 """Build funnel.db from the daily snapshot CSVs the sheet's Apps Script commits to data/snapshots/.
 
-Each file is one day: lead_id, source_tab, status (older files also have a date_added column, which is ignored).
+Each file is one day: lead_id, source_tab, status, has_note (1 if the sheet's Notes cell is filled). Older files may lack
+has_note or have a date_added column; missing has_note counts as 0 and date_added is ignored.
 The latest file gives each lead's current state; the first file a lead appears in gives its first_seen date.
 """
 import csv
@@ -28,7 +29,7 @@ def read_snapshot(path):
         reader = csv.DictReader(f)
         if not set(REQUIRED) <= set(reader.fieldnames or []):
             sys.exit(f"{path.name}: expected columns {REQUIRED}, found {reader.fieldnames}")
-        return [(r["lead_id"], r["source_tab"], canon(r["status"])) for r in reader]
+        return [(r["lead_id"], r["source_tab"], canon(r["status"]), r.get("has_note") == "1") for r in reader]
 
 
 def main():
@@ -40,12 +41,12 @@ def main():
 
     latest, first_seen, snapshots = {}, {}, {}
     for f in files:
-        for lead_id, source, status in read_snapshot(f):
-            latest[lead_id] = (source, status)
+        for lead_id, source, status, has_note in read_snapshot(f):
+            latest[lead_id] = (source, status, has_note)
             first_seen.setdefault(lead_id, f.stem)
             snapshots[(f.stem, lead_id)] = status
     as_of = files[-1].stem
-    unmapped = sorted(({s for _, s in latest.values()} | set(snapshots.values())) - set(STATUS_MAP))
+    unmapped = sorted(({v[1] for v in latest.values()} | set(snapshots.values())) - set(STATUS_MAP))
 
     DB_PATH.unlink(missing_ok=True)
     db = sqlite3.connect(DB_PATH)
@@ -56,8 +57,8 @@ def main():
     db.executemany("INSERT INTO meta VALUES (?, ?)", [
         ("source", "sheet"), ("as_of", as_of), ("unmapped", "|".join(unmapped)),
     ])
-    db.executemany("INSERT INTO leads VALUES (?,?,?,?,?)",
-                   [(lid, src, st, first_seen[lid], as_of) for lid, (src, st) in latest.items()])
+    db.executemany("INSERT INTO leads VALUES (?,?,?,?,?,?)",
+                   [(lid, src, st, int(note), first_seen[lid], as_of) for lid, (src, st, note) in latest.items()])
     db.executemany("INSERT INTO status_snapshots VALUES (?,?,?)",
                    [(d, lid, st) for (d, lid), st in snapshots.items()])
     db.commit()
