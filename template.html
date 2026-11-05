@@ -143,7 +143,7 @@ const fp = v => (v > 0 && v < 10 ? v.toFixed(1) : Math.round(v)) + '%';
 const esc = s => String(s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
 
 function rows() {
-  return D.funnel.filter(r => (state.source === 'All' || r.source === state.source)
+  return D.funnel.filter(r => (state.source === 'All' ? r.source !== 'LinkedIn' : r.source === state.source)
     && (state.days === 'all' || inWindow(r.day, 0, state.days - 1)));
 }
 function sum(rs) {
@@ -151,13 +151,15 @@ function sum(rs) {
   rs.forEach(r => D.keys.forEach(k => o[k] += r[k]));
   return o;
 }
-/* LinkedIn tab: campaign activity from HeyReach (the sheet's LinkedIn tab is not used) */
+/* LinkedIn tab: top of the funnel from HeyReach campaign activity; Demo, Won and Dead from the sheet's LinkedIn tab */
 const LI_STAGES = [{ key: 'sent', label: 'Requests sent' }, { key: 'accepted', label: 'Accepted' },
-  { key: 'messaged', label: 'Messages started' }, { key: 'replied', label: 'Replies' }];
+  { key: 'messaged', label: 'Messages started' }, { key: 'replied', label: 'Replies' },
+  { key: 'meeting', label: 'Demo' }, { key: 'won', label: 'Won' }];
 const isLI = () => state.source === 'LinkedIn';
-const stages = () => isLI() ? LI_STAGES : D.stages;
+const hrView = () => isLI() && !!D.heyreach;
+const stages = () => hrView() ? LI_STAGES : D.stages;
 function liTotals() {
-  const t = { sent: 0, accepted: 0, messaged: 0, replied: 0 };
+  const t = { ...sum(rows()), sent: 0, accepted: 0, messaged: 0, replied: 0 };
   Object.entries(D.heyreach.daily).forEach(([d, v]) => {
     if (state.days !== 'all' && !inWindow(d, 0, state.days - 1)) return;
     t.sent += v.connections_sent; t.accepted += v.connections_accepted; t.messaged += v.messages_started; t.replied += v.replies;
@@ -165,7 +167,7 @@ function liTotals() {
   t.added = t.sent;
   return t;
 }
-const scope = () => isLI() ? liTotals() : sum(rows());
+const scope = () => hrView() ? liTotals() : sum(rows());
 const scopeLabel = () => winLabel(state.days) + (state.source === 'All' ? '' : ' · ' + state.source);
 
 /* ---- tooltip (wide funnel only) ---- */
@@ -180,7 +182,7 @@ const hideTip = () => tip.style.display = 'none';
 
 /* ---- controls: built once so keyboard focus survives updates ---- */
 function initControls() {
-  $('#srcSeg').innerHTML = ['All', ...(D.heyreach ? ['LinkedIn'] : []), ...D.sources].map(v => `<button type="button" data-src="${v}">${v}</button>`).join('');
+  $('#srcSeg').innerHTML = ['All', ...D.sources].map(v => `<button type="button" data-src="${v}">${v}</button>`).join('');
   $('#winSeg').innerHTML = [...D.windows, 'all'].map(d => `<button type="button" data-days="${d}">${winLabel(d)}</button>`).join('');
 }
 function syncControls() {
@@ -199,7 +201,7 @@ $('#winSeg').addEventListener('click', e => {
 /* ---- KPIs ---- */
 function renderKPIs() {
   const t = scope();
-  const tiles = isLI()
+  const tiles = hrView()
     ? LI_STAGES.map((s, i) => [s.label, t[s.key].toLocaleString(), i ? fp(pct(t[s.key], t.sent)) + ' of requests' : scopeLabel()])
     : [
       ['Leads', t.added.toLocaleString(), scopeLabel()],
@@ -249,7 +251,7 @@ function funnelSvg(t) {
        + `<circle cx="${x1 + 44}" cy="${cy}" r="36" fill="var(--surface-1)" stroke="var(--stage-1)" stroke-width="2"/>`
        + `<text class="cnt" x="${x1 + 44}" y="${cy + 5}" text-anchor="middle">${t[last.key].toLocaleString()}</text>`;
   const sr = '<ul class="sr-only">' + S.map(s =>
-    `<li>${s.label}: ${t[s.key].toLocaleString()} (${fp(pct(t[s.key], t.added))} of ${isLI() ? 'requests' : 'added'})</li>`).join('') + '</ul>';
+    `<li>${s.label}: ${t[s.key].toLocaleString()} (${fp(pct(t[s.key], t.added))} of ${hrView() ? 'requests' : 'added'})</li>`).join('') + '</ul>';
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" aria-hidden="true">${out}</svg>${sr}`;
 }
 
@@ -272,8 +274,6 @@ $('#funnel').addEventListener('mouseleave', hideTip);
 
 /* ---- Dead: leads with status Not interested. Note text stays in the private sheet; only counts are published. ---- */
 function renderDead() {
-  $('#deadCard').hidden = isLI();
-  if (isLI()) return;
   const t = scope();
   $('#deadBox').innerHTML = `<div class="kpi"><div class="l">Dead leads (Not interested)</div><div class="v">${t.dead.toLocaleString()}</div></div>`
     + `<a class="kpi" href="${esc(D.sheetUrl)}" target="_blank" rel="noopener"><div class="l">Why are they dead?</div><div class="v">Notes</div></a>`;
