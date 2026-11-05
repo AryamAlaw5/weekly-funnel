@@ -47,13 +47,14 @@ select { min-height: 38px; font: inherit; color: var(--text-primary); background
 select:hover { border-color: #4a4560; }
 @media (pointer: coarse) { .seg button, select { min-height: 44px; } }
 [hidden] { display: none !important; }
-.note { color: var(--text-muted); font-size: 12px; margin: calc(-1 * var(--s2)) 0 var(--s3); }
 .asof { margin-left: auto; color: var(--text-muted); font-size: 12px; }
 .notice { margin: 0 0 var(--s4); padding: var(--s3) var(--s4); border: 1px solid rgba(250,178,25,.45); border-radius: var(--radius);
   background: rgba(250,178,25,.08); color: var(--text-primary); }
 
 .kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: var(--s3); margin-bottom: var(--s4); }
 .kpi { background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--s4); }
+a.kpi { color: inherit; text-decoration: none; }
+a.kpi:hover { border-color: #4a4560; }
 .kpi .l { color: var(--text-secondary); font-size: 13px; }
 .kpi .v { font-size: 26px; font-weight: 600; color: var(--brand-soft); line-height: 1.2; margin: var(--s1) 0; font-variant-numeric: tabular-nums; }
 .kpi .s { color: var(--text-muted); font-size: 12px; }
@@ -114,13 +115,7 @@ select:hover { border-color: #4a4560; }
       <div id="funnel"></div>
     </section>
 
-    <section class="card" id="hrCard" aria-labelledby="hTitle" hidden>
-      <h2 id="hTitle">LinkedIn</h2>
-      <p class="note" id="hrNote"></p>
-      <div class="kpis" id="hrKpis"></div>
-    </section>
-
-    <section class="card" aria-labelledby="dTitle">
+    <section class="card" id="deadCard" aria-labelledby="dTitle">
       <h2 id="dTitle">Dead</h2>
       <div class="kpis" id="deadBox"></div>
     </section>
@@ -156,7 +151,21 @@ function sum(rs) {
   rs.forEach(r => D.keys.forEach(k => o[k] += r[k]));
   return o;
 }
-const scope = () => sum(rows());
+/* LinkedIn tab: campaign activity from HeyReach (the sheet's LinkedIn tab is not used) */
+const LI_STAGES = [{ key: 'sent', label: 'Requests sent' }, { key: 'accepted', label: 'Accepted' },
+  { key: 'messaged', label: 'Messages started' }, { key: 'replied', label: 'Replies' }];
+const isLI = () => state.source === 'LinkedIn';
+const stages = () => isLI() ? LI_STAGES : D.stages;
+function liTotals() {
+  const t = { sent: 0, accepted: 0, messaged: 0, replied: 0 };
+  Object.entries(D.heyreach.daily).forEach(([d, v]) => {
+    if (state.days !== 'all' && !inWindow(d, 0, state.days - 1)) return;
+    t.sent += v.connections_sent; t.accepted += v.connections_accepted; t.messaged += v.messages_started; t.replied += v.replies;
+  });
+  t.added = t.sent;
+  return t;
+}
+const scope = () => isLI() ? liTotals() : sum(rows());
 const scopeLabel = () => winLabel(state.days) + (state.source === 'All' ? '' : ' · ' + state.source);
 
 /* ---- tooltip (wide funnel only) ---- */
@@ -171,7 +180,7 @@ const hideTip = () => tip.style.display = 'none';
 
 /* ---- controls: built once so keyboard focus survives updates ---- */
 function initControls() {
-  $('#srcSeg').innerHTML = ['All', ...D.sources].map(v => `<button type="button" data-src="${v}">${v}</button>`).join('');
+  $('#srcSeg').innerHTML = ['All', ...(D.heyreach ? ['LinkedIn'] : []), ...D.sources].map(v => `<button type="button" data-src="${v}">${v}</button>`).join('');
   $('#winSeg').innerHTML = [...D.windows, 'all'].map(d => `<button type="button" data-days="${d}">${winLabel(d)}</button>`).join('');
 }
 function syncControls() {
@@ -190,13 +199,15 @@ $('#winSeg').addEventListener('click', e => {
 /* ---- KPIs ---- */
 function renderKPIs() {
   const t = scope();
-  const tiles = [
-    ['Leads', t.added.toLocaleString(), scopeLabel()],
-    ['Connected', fp(pct(t.message_sent, t.added)), t.message_sent + ' of ' + t.added],
-    ['Replied', fp(pct(t.replied, t.added)), t.replied + ' of ' + t.added],
-    ['Demos', t.meeting.toLocaleString(), fp(pct(t.meeting, t.added)) + ' of leads'],
-    ['Won', t.won.toLocaleString(), fp(pct(t.won, t.added)) + ' of leads'],
-  ];
+  const tiles = isLI()
+    ? LI_STAGES.map((s, i) => [s.label, t[s.key].toLocaleString(), i ? fp(pct(t[s.key], t.sent)) + ' of requests' : scopeLabel()])
+    : [
+      ['Leads', t.added.toLocaleString(), scopeLabel()],
+      ['Connected', fp(pct(t.message_sent, t.added)), t.message_sent + ' of ' + t.added],
+      ['Replied', fp(pct(t.replied, t.added)), t.replied + ' of ' + t.added],
+      ['Demos', t.meeting.toLocaleString(), fp(pct(t.meeting, t.added)) + ' of leads'],
+      ['Won', t.won.toLocaleString(), fp(pct(t.won, t.added)) + ' of leads'],
+    ];
   $('#kpis').innerHTML = tiles.map(([l, v, s]) =>
     `<div class="kpi"><div class="l">${l}</div><div class="v">${v}</div><div class="s">${esc(s)}</div></div>`).join('');
 }
@@ -207,8 +218,9 @@ let funnelMode = null;
 const modeNow = () => $('#funnel').clientWidth >= WIDE ? 'wide' : 'narrow';
 
 function funnelList(t) {
-  return '<ul class="flist">' + D.stages.map((s, i) => {
-    const v = t[s.key], prev = i ? D.stages[i - 1] : null;
+  const S = stages();
+  return '<ul class="flist">' + S.map((s, i) => {
+    const v = t[s.key], prev = i ? S[i - 1] : null;
     return `<li class="fitem"><div class="fhead"><span class="fname">${s.label}</span><span class="fval">${v.toLocaleString()}<b>${fp(pct(v, t.added))}</b></span></div>`
       + `<div class="ftrack"><div class="fbar" style="width:${pct(v, t.added)}%;background:var(--stage-${i + 1})"></div></div>`
       + (prev ? `<div class="fstep">${fp(pct(v, t[prev.key]))} of ${prev.label}</div>` : '') + '</li>';
@@ -216,12 +228,13 @@ function funnelList(t) {
 }
 
 function funnelSvg(t) {
+  const S = stages();
   const W = 1000, H = 320, x0 = 20, x1 = 900, cy = 172, hmax = 190, hmin = 5, endH = 30;
-  const n = D.stages.length, sw = (x1 - x0) / n;
+  const n = S.length, sw = (x1 - x0) / n;
   const hh = v => Math.max(hmin, t.added ? v / t.added * hmax : hmin);
-  const hs = D.stages.map(s => hh(t[s.key]));
+  const hs = S.map(s => hh(t[s.key]));
   let out = '';
-  D.stages.forEach((s, i) => {
+  S.forEach((s, i) => {
     const xa = x0 + i * sw, xb = xa + sw, mid = xa + sw / 2;
     const ha = hs[i], hb = i < n - 1 ? hs[i + 1] : endH, v = t[s.key];
     out += `<path class="fseg" data-i="${i}" fill="var(--stage-${i + 1})" stroke="var(--surface-1)" stroke-width="2" stroke-linejoin="round"
@@ -229,20 +242,20 @@ function funnelSvg(t) {
     out += `<text class="fp" x="${mid}" y="26" text-anchor="middle">${fp(pct(v, t.added))}</text>`
          + `<text class="lbl" x="${mid}" y="45" text-anchor="middle">${s.label}</text>`
          + `<text x="${mid}" y="62" text-anchor="middle">${v.toLocaleString()}</text>`;
-    if (i) out += `<text x="${mid}" y="${H - 8}" text-anchor="middle">${fp(pct(v, t[D.stages[i - 1].key]))} of previous</text>`;
+    if (i) out += `<text x="${mid}" y="${H - 8}" text-anchor="middle">${fp(pct(v, t[S[i - 1].key]))} of previous</text>`;
   });
-  const last = t[D.stages[n - 1].key];
-  out += `<text x="${x1 + 44}" y="${cy - 46}" text-anchor="middle">Won</text>`
+  const last = S[n - 1];
+  out += `<text x="${x1 + 44}" y="${cy - 46}" text-anchor="middle">${last.label}</text>`
        + `<circle cx="${x1 + 44}" cy="${cy}" r="36" fill="var(--surface-1)" stroke="var(--stage-1)" stroke-width="2"/>`
-       + `<text class="cnt" x="${x1 + 44}" y="${cy + 5}" text-anchor="middle">${last.toLocaleString()}</text>`;
-  const sr = '<ul class="sr-only">' + D.stages.map((s, i) =>
-    `<li>${s.label}: ${t[s.key].toLocaleString()} (${fp(pct(t[s.key], t.added))} of added)</li>`).join('') + '</ul>';
+       + `<text class="cnt" x="${x1 + 44}" y="${cy + 5}" text-anchor="middle">${t[last.key].toLocaleString()}</text>`;
+  const sr = '<ul class="sr-only">' + S.map(s =>
+    `<li>${s.label}: ${t[s.key].toLocaleString()} (${fp(pct(t[s.key], t.added))} of ${isLI() ? 'requests' : 'added'})</li>`).join('') + '</ul>';
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" aria-hidden="true">${out}</svg>${sr}`;
 }
 
 function renderFunnel() {
   const t = scope();
-  $('#fTitle').textContent = 'Funnel · ' + scopeLabel();
+  $('#fTitle').textContent = 'Funnel \u00b7 ' + scopeLabel();
   funnelMode = modeNow();
   $('#funnel').innerHTML = funnelMode === 'wide' ? funnelSvg(t) : funnelList(t);
 }
@@ -250,36 +263,25 @@ new ResizeObserver(() => { if (modeNow() !== funnelMode) renderFunnel(); }).obse
 
 $('#funnel').addEventListener('mousemove', e => {
   const r = e.target.closest('.fseg'); if (!r) return hideTip();
-  const t = scope(), i = +r.dataset.i, s = D.stages[i], v = t[s.key];
-  let h = `<b>${s.label}</b><div>${v.toLocaleString()} of ${t.added.toLocaleString()} added (${fp(pct(v, t.added))})</div>`;
-  if (i) { const p = D.stages[i - 1]; h += `<div>${fp(pct(v, t[p.key]))} of ${p.label}; ${(t[p.key] - v).toLocaleString()} dropped here</div>`; }
+  const S = stages(), t = scope(), i = +r.dataset.i, s = S[i], v = t[s.key];
+  let h = `<b>${s.label}</b><div>${v.toLocaleString()} of ${t.added.toLocaleString()} (${fp(pct(v, t.added))})</div>`;
+  if (i) { const p = S[i - 1]; h += `<div>${fp(pct(v, t[p.key]))} of ${p.label}; ${(t[p.key] - v).toLocaleString()} dropped here</div>`; }
   showTip(h, e.clientX, e.clientY);
 });
 $('#funnel').addEventListener('mouseleave', hideTip);
 
-/* ---- Dead: leads with a note in the sheet's Notes column, or status Not interested (counts only, no note text) ---- */
+/* ---- Dead: leads with status Not interested. Note text stays in the private sheet; only counts are published. ---- */
 function renderDead() {
+  $('#deadCard').hidden = isLI();
+  if (isLI()) return;
   const t = scope();
-  $('#deadBox').innerHTML = `<div class="kpi"><div class="l">Dead leads</div><div class="v">${t.dead.toLocaleString()}</div>`
-    + `<div class="s">${fp(pct(t.dead, t.added))} of ${t.added.toLocaleString()} leads · ${esc(scopeLabel())}</div></div>`;
-}
-
-/* ---- HeyReach (separate source: LinkedIn campaign activity, counts only) ---- */
-function renderHeyReach() {
-  const H = D.heyreach; if (!H) return;
-  const days = Object.entries(H.daily).filter(([d]) => state.days === 'all' || inWindow(d, 0, state.days - 1));
-  const t = k => days.reduce((a, [, v]) => a + v[k], 0);
-  $('#hrCard').hidden = false;
-  $('#hrNote').textContent = 'Campaign activity from HeyReach, separate from the sheet funnel. ' + H.campaigns.map(c => `${c.name} (${c.leads} leads, ${c.status.replace('_', ' ').toLowerCase()})`).join(' · ')
-    + '. Data as of ' + H.as_of + ' (refreshed manually); ' + winLabel(state.days) + '.';
-  $('#hrKpis').innerHTML = [
-    ['Requests sent', t('connections_sent')], ['Accepted', t('connections_accepted')],
-    ['Messages started', t('messages_started')], ['Replies', t('replies')],
-  ].map(([l, v]) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v.toLocaleString()}</div></div>`).join('');
+  $('#deadBox').innerHTML = `<div class="kpi"><div class="l">Dead leads (Not interested)</div><div class="v">${t.dead.toLocaleString()}</div>`
+    + `<div class="s">${fp(pct(t.dead, t.added))} of ${t.added.toLocaleString()} leads \u00b7 ${t.dead_with_note.toLocaleString()} with a note \u00b7 ${esc(scopeLabel())}</div></div>`
+    + `<a class="kpi" href="${esc(D.sheetUrl)}" target="_blank" rel="noopener"><div class="l">Why are they dead?</div><div class="v">Notes</div><div class="s">Open the sheet and read the Notes column</div></a>`;
 }
 
 function render(announce) {
-  syncControls(); renderKPIs(); renderFunnel(); renderHeyReach(); renderDead();
+  syncControls(); renderKPIs(); renderFunnel(); renderDead();
   if (announce) $('#live').textContent = 'Showing ' + scopeLabel() + ': ' + scope().added.toLocaleString() + ' leads';
 }
 $('#fakeBadge').hidden = !D.fake;
