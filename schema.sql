@@ -25,6 +25,7 @@ CREATE TABLE leads (
   lead_id    TEXT PRIMARY KEY,      -- anonymous hash of tab + company + contact/website
   source_tab TEXT NOT NULL,         -- Zid | Salla | LinkedIn
   status     TEXT NOT NULL REFERENCES status_map(status),
+  has_note   INTEGER NOT NULL DEFAULT 0,  -- 1 if the sheet's Notes cell is filled (the note text itself is never exported)
   first_seen DATE NOT NULL,
   updated_at DATE NOT NULL
 );
@@ -49,8 +50,7 @@ SELECT
   COUNT(*) FILTER (WHERE m.stage_order >= 3)        AS replied,
   COUNT(*) FILTER (WHERE m.stage_order >= 4)        AS meeting,
   COUNT(*) FILTER (WHERE m.stage_order >= 5)        AS won,
-  COUNT(*) FILTER (WHERE LOWER(l.status) = 'no response')    AS no_response,
-  COUNT(*) FILTER (WHERE LOWER(l.status) = 'not interested') AS not_interested
+  COUNT(*) FILTER (WHERE l.has_note = 1 OR LOWER(l.status) = 'not interested') AS dead
 FROM leads l
 JOIN status_map m ON m.status = l.status
 GROUP BY l.first_seen, l.source_tab;
