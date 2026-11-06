@@ -6,7 +6,7 @@ from pathlib import Path
 
 from common import DB_PATH, HERE, SHEET_URL, WINDOWS
 
-KEYS = ["added", "message_sent", "contacted", "replied", "meeting", "won", "dead", "dead_with_note"]
+KEYS = ["added", "message_sent", "replied", "meeting", "won", "dead", "dead_with_note"]
 STAGES = [
     {"key": "added", "label": "Leads"},
     {"key": "message_sent", "label": "Connected"},
