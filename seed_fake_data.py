@@ -1,7 +1,6 @@
 """Build funnel.db with FAKE leads shaped like the Zid+Salla sheet (Zid, Salla, LinkedIn; first seen over the last 45 days).
 
-Each lead is simulated day by day from its first_seen day to TODAY, and every day is
-written to status_snapshots, the same rows the real sync would append.
+Each lead is simulated day by day from its first_seen day to TODAY; only the final status is stored.
 """
 import hashlib
 import random
@@ -74,19 +73,17 @@ def main():
     db.executemany("INSERT INTO status_map VALUES (?, ?)", STATUS_MAP.items())
     db.executemany("INSERT INTO meta VALUES (?, ?)", [("source", "fake"), ("as_of", TODAY.isoformat()), ("unmapped", "")])
 
-    used, leads, snapshots = set(), [], []
+    used, leads = set(), []
     for tab in SOURCES:
         for _ in range(LEADS_PER_TAB[tab]):
             first = TODAY - timedelta(days=random.randrange(DAYS_BACK))
             lead_id = make_lead(tab, used)
             history = simulate(first, tab)
             leads.append((lead_id, tab, history[-1][1], 0, first.isoformat(), TODAY.isoformat()))
-            snapshots += [(d.isoformat(), lead_id, st) for d, st in history]
 
     db.executemany("INSERT INTO leads VALUES (?,?,?,?,?,?)", leads)
-    db.executemany("INSERT INTO status_snapshots VALUES (?,?,?)", snapshots)
     db.commit()
-    print(f"{len(leads)} leads, {len(snapshots)} snapshots -> {DB_PATH.name}")
+    print(f"{len(leads)} leads -> {DB_PATH.name}")
 
 
 if __name__ == "__main__":
