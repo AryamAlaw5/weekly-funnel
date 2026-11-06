@@ -41,7 +41,7 @@ manually, not by the daily job.
 |---|---|
 | `apps-script/Code.gs` | runs in the sheet; pushes daily anonymous snapshots |
 | `ingest.py` | snapshot CSVs to SQLite |
-| `schema.sql` | tables, `status_map`, funnel-by-day and status-change views |
+| `schema.sql` | tables, `status_map` and the funnel-by-day view |
 | `common.py` | window lengths (7/14/30 days) and the status to stage map |
 | `seed_fake_data.py` | fake leads for the demo |
 | `report.py` + `template.html` | builds the single-file report |
