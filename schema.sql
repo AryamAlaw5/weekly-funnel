@@ -1,8 +1,6 @@
 -- Funnel schema. SQLite; the shapes carry over to Postgres.
 
 DROP VIEW  IF EXISTS v_funnel_by_day;
-DROP VIEW  IF EXISTS v_status_changes;
-DROP TABLE IF EXISTS status_snapshots;
 DROP TABLE IF EXISTS leads;
 DROP TABLE IF EXISTS status_map;
 DROP TABLE IF EXISTS meta;
@@ -31,14 +29,6 @@ CREATE TABLE leads (
 );
 CREATE INDEX idx_leads_seen ON leads(first_seen, source_tab);
 
--- One row per lead per sync day. The sheet has no history, so movement comes from here.
-CREATE TABLE status_snapshots (
-  snapshot_date DATE NOT NULL,
-  lead_id       TEXT NOT NULL REFERENCES leads(lead_id),
-  status        TEXT NOT NULL,
-  PRIMARY KEY (snapshot_date, lead_id)
-);
-
 -- Leads grouped by the day first seen, counted by furthest stage reached.
 CREATE VIEW v_funnel_by_day AS
 SELECT
@@ -46,7 +36,6 @@ SELECT
   l.source_tab,
   COUNT(*)                                          AS added,
   COUNT(*) FILTER (WHERE m.stage_order >= 1)        AS message_sent,
-  COUNT(*) FILTER (WHERE m.stage_order >= 2)        AS contacted,
   COUNT(*) FILTER (WHERE m.stage_order >= 3)        AS replied,
   COUNT(*) FILTER (WHERE m.stage_order >= 4)        AS meeting,
   COUNT(*) FILTER (WHERE m.stage_order >= 5)        AS won,
@@ -55,15 +44,3 @@ SELECT
 FROM leads l
 JOIN status_map m ON m.status = l.status
 GROUP BY l.first_seen, l.source_tab;
-
--- Every day-to-day status change, from consecutive snapshots.
-CREATE VIEW v_status_changes AS
-SELECT s.snapshot_date AS changed_on, s.lead_id, l.source_tab,
-       s.prev_status AS from_status, s.status AS to_status
-FROM (
-  SELECT snapshot_date, lead_id, status,
-         LAG(status) OVER (PARTITION BY lead_id ORDER BY snapshot_date) AS prev_status
-  FROM status_snapshots
-) s
-JOIN leads l USING (lead_id)
-WHERE s.prev_status IS NOT NULL AND s.prev_status <> s.status;
