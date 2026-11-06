@@ -39,14 +39,14 @@ def main():
     for f in files:
         date.fromisoformat(f.stem)  # file names must be YYYY-MM-DD.csv
 
-    latest, first_seen, snapshots = {}, {}, {}
+    latest, first_seen, statuses = {}, {}, set()
     for f in files:
         for lead_id, source, status, has_note in read_snapshot(f):
             latest[lead_id] = (source, status, has_note)
             first_seen.setdefault(lead_id, f.stem)
-            snapshots[(f.stem, lead_id)] = status
+            statuses.add(status)
     as_of = files[-1].stem
-    unmapped = sorted(({v[1] for v in latest.values()} | set(snapshots.values())) - set(STATUS_MAP))
+    unmapped = sorted(({v[1] for v in latest.values()} | statuses) - set(STATUS_MAP))
 
     DB_PATH.unlink(missing_ok=True)
     db = sqlite3.connect(DB_PATH)
@@ -59,8 +59,6 @@ def main():
     ])
     db.executemany("INSERT INTO leads VALUES (?,?,?,?,?,?)",
                    [(lid, src, st, int(note), first_seen[lid], as_of) for lid, (src, st, note) in latest.items()])
-    db.executemany("INSERT INTO status_snapshots VALUES (?,?,?)",
-                   [(d, lid, st) for (d, lid), st in snapshots.items()])
     db.commit()
     print(f"{len(latest)} leads, {len(files)} snapshot days (latest {as_of}), "
           f"{len(unmapped)} unmapped status(es){': ' + ', '.join(unmapped) if unmapped else ''}")
