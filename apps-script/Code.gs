@@ -16,7 +16,7 @@
 const CONFIG = {
   SHEET_ID: '1P6icIaxNl2jwX1J5v99pPo9Vrd2QIYdnUlWJQHdOht4', // "Zid+Salla" (replaced the old Mawsool/Sfere/Zid/Salla sheet)
   OWNER: 'AryamAlaw5',
-  REPO: 'weekly-funnel-demo',
+  REPO: 'weekly-funnel',
   BRANCH: 'main',
   FOLDER: 'data/snapshots',
   DAILY_HOUR: 6,
@@ -76,6 +76,7 @@ function buildRows_(ss, salt, tz) {
   const rows = [];
   const skipped = [];
   const tabsSeen = [];
+  const seen = {}; // shared by all tabs, so a store listed in two tabs of one source becomes one lead
 
   ss.getSheets().forEach(function (sheet) {
     const name = sheet.getName();
@@ -94,7 +95,6 @@ function buildRows_(ss, salt, tz) {
       if (!(h in col)) throw new Error('Tab "' + name + '" has no "' + h + '" column.');
     });
 
-    const seen = {};
     for (let r = 1; r < values.length; r++) {
       const row = values[r];
       const parts = cfg.keys.map(function (k) { return String(row[col[k]]).trim(); });
