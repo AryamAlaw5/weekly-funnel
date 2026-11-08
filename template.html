@@ -274,9 +274,12 @@ function funnelSvg(t) {
   return `<svg viewBox="0 0 ${W} ${H}" width="100%" aria-hidden="true">${out}</svg>${sr}`;
 }
 
+/* where each channel's leads come from, shown above the funnel */
+const SRC_NOTE = { LinkedIn: 'HeyReach', Salla: 'Salla reviews', Zid: 'Zid reviews', 'Stores + Ads': 'Stores + Ads App in Salla' };
 function renderFunnel() {
   const t = scope();
-  $('#fTitle').textContent = 'Funnel \u00b7 ' + scopeLabel();
+  const note = SRC_NOTE[state.source] || '';
+  $('#fTitle').textContent = note; $('#fTitle').hidden = !note;
   funnelMode = modeNow();
   $('#funnel').innerHTML = funnelMode === 'wide' ? funnelSvg(t) : funnelList(t);
 }
