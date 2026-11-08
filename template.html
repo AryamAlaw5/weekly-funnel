@@ -227,7 +227,7 @@ function funnelList(t) {
 
 function funnelSvg(t) {
   const S = stages();
-  const W = 1000, H = 320, x0 = 20, x1 = 900, cy = 172, hmax = 190, hmin = 5, endH = 30;
+  const W = 1000, H = 290, x0 = 20, x1 = 900, cy = 172, hmax = 190, hmin = 5, endH = 30;
   const n = S.length, sw = (x1 - x0) / n;
   const hh = v => Math.max(hmin, t.added ? v / t.added * hmax : hmin);
   const hs = S.map(s => hh(t[s.key]));
@@ -240,7 +240,6 @@ function funnelSvg(t) {
     out += `<text class="fp" x="${mid}" y="26" text-anchor="middle">${fp(pct(v, t.added))}</text>`
          + `<text class="lbl" x="${mid}" y="45" text-anchor="middle">${s.label}</text>`
          + `<text x="${mid}" y="62" text-anchor="middle">${v.toLocaleString()}</text>`;
-    if (i) out += `<text x="${mid}" y="${H - 8}" text-anchor="middle">${fp(pct(v, t[S[i - 1].key]))} of previous</text>`;
   });
   const last = S[n - 1];
   out += `<text x="${x1 + 44}" y="${cy - 46}" text-anchor="middle">${last.label}</text>`
