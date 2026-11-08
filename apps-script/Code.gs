@@ -8,7 +8,8 @@
  *
  * Needs one Script property (Project Settings > Script properties):
  *   GITHUB_TOKEN  fine-grained token, this one repo only, "Contents: read and write"
- * ID_SALT (the secret that keeps hashed IDs unguessable) is created automatically on the first run.
+ * HEYREACH_API_KEY (optional) HeyReach API key; turns on the daily HeyReach refresh
+* ID_SALT (the secret that keeps hashed IDs unguessable) is created automatically on the first run.
  * Do not delete it later, or every lead gets a new ID and the history restarts.
  *
  * Always opens the sheet named by CONFIG.SHEET_ID, even if this script is bound to a different file.
@@ -58,6 +59,7 @@ function pushSnapshot() {
   commitFile_(CONFIG.FOLDER + '/' + today + '.csv', toCsv_(result.rows), token, 'Snapshot ' + today + ' (' + note + ')');
 
   Logger.log('Pushed ' + note + ' for ' + today);
+  try { pushHeyReach_(token, today); } catch (e) { Logger.log('HeyReach skipped: ' + e.message); }
   if (result.skipped.length) Logger.log('Skipped rows: ' + result.skipped.join('; '));
   return note;
 }
@@ -180,4 +182,50 @@ function commitFile_(path, content, token, message) {
   if (code !== 200 && code !== 201) {
     throw new Error('GitHub commit failed (' + code + '): ' + res.getContentText().slice(0, 300));
   }
+}
+
+/* ---------- HeyReach (optional) ---------- */
+
+// Needs the Script property HEYREACH_API_KEY (HeyReach > Settings > Integrations > API). Without it this step is skipped.
+// Read-only: asks HeyReach for aggregate campaign counts and commits data/heyreach.json. No lead data is read.
+const HEYREACH = {
+  CAMPAIGNS: [{ id: 692357, name: '1 NOV - EN', leads: 33 }, { id: 692364, name: '1 NOV - AR', leads: 17 }],
+  FROM: '2026-11-01',
+  FILE: 'data/heyreach.json',
+  API: 'https://api.heyreach.io/api/public/',
+};
+
+function pushHeyReach_(token, today) {
+  const key = PropertiesService.getScriptProperties().getProperty('HEYREACH_API_KEY');
+  if (!key) return;
+  const post = function (path, payload) {
+    const res = UrlFetchApp.fetch(HEYREACH.API + path, {
+      method: 'post', headers: { 'X-API-KEY': key }, contentType: 'application/json',
+      payload: JSON.stringify(payload), muteHttpExceptions: true,
+    });
+    if (res.getResponseCode() !== 200) throw new Error('HeyReach ' + path + ' failed (' + res.getResponseCode() + '): ' + res.getContentText().slice(0, 200));
+    return JSON.parse(res.getContentText());
+  };
+  const ids = HEYREACH.CAMPAIGNS.map(function (c) { return c.id; });
+  const stats = post('stats/GetOverallStats', {
+    accountIds: [], campaignIds: ids, startDate: HEYREACH.FROM + 'T00:00:00Z', endDate: today + 'T23:59:59Z',
+  });
+  const list = post('campaign/GetAll', { offset: 0, limit: 100, keyword: '' });
+  const status = {};
+  (list.items || []).forEach(function (c) { status[c.id] = c.status; });
+
+  const daily = {};
+  Object.keys(stats.byDayStats || {}).sort().forEach(function (k) {
+    const d = stats.byDayStats[k];
+    const v = { connections_sent: d.connectionsSent, connections_accepted: d.connectionsAccepted, messages_started: d.totalMessageStarted, replies: d.totalMessageReplies };
+    if (v.connections_sent || v.connections_accepted || v.messages_started || v.replies) daily[k.slice(0, 10)] = v;
+  });
+  const out = {
+    as_of: today,
+    note: 'Aggregate counts only, from HeyReach campaigns ' + HEYREACH.CAMPAIGNS.map(function (c) { return c.name; }).join(' and ') + ' (read-only). No lead data.',
+    campaigns: HEYREACH.CAMPAIGNS.map(function (c) { return { name: c.name, status: status[c.id] || 'UNKNOWN', leads: c.leads }; }),
+    daily: daily,
+  };
+  commitFile_(HEYREACH.FILE, JSON.stringify(out, null, 1) + '\n', token, 'HeyReach ' + today);
+  Logger.log('Pushed HeyReach stats for ' + today);
 }
