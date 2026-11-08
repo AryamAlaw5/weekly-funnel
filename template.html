@@ -89,16 +89,7 @@ a.kpi:hover { border-color: #4a4560; }
   .card { padding: var(--s4); }
 }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
-.chans { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: var(--s3); }
-.chan { text-align: left; font: inherit; color: inherit; cursor: pointer; background: var(--surface-1); border: 1px solid var(--border); border-radius: var(--radius); padding: var(--s4); transition: border-color .15s; }
 .chan:hover { border-color: #4a4560; }
-.chan .ch { display: flex; justify-content: space-between; align-items: baseline; margin-bottom: var(--s3); }
-.chan .cn { font-weight: 600; }
-.chan .cl { color: var(--brand-soft); font-weight: 600; font-variant-numeric: tabular-nums; }
-.chan .cr { display: grid; grid-template-columns: 72px 1fr auto; align-items: center; gap: var(--s2); font-size: 12px; color: var(--text-secondary); margin-top: 6px; }
-.chan .ct { height: 6px; background: var(--hover); border-radius: 3px; overflow: hidden; }
-.chan .cb { height: 100%; min-width: 2px; background: var(--brand); border-radius: 3px; }
-.chan .cv { font-variant-numeric: tabular-nums; color: var(--text-primary); }
 </style>
 </head>
 <body>
@@ -119,10 +110,6 @@ a.kpi:hover { border-color: #4a4560; }
     <section class="card" aria-labelledby="fTitle">
       <h2 id="fTitle">Funnel</h2>
       <div id="funnel"></div>
-    </section>
-
-    <section class="card" aria-label="By channel">
-      <div class="chans" id="chans"></div>
     </section>
 
     <section class="card" id="deadCard" aria-labelledby="dTitle">
@@ -301,33 +288,8 @@ function renderDead() {
     + `<a class="kpi" href="${esc(D.sheetUrl)}" target="_blank" rel="noopener"><div class="l">Why are they dead?</div><div class="v">Notes</div></a>`;
 }
 
-/* ---- by channel: a small funnel per source, same time window; click a card to open that channel ---- */
-const CHANNELS = [['Salla', 'Salla'], ['Zid', 'Zid'], ['Stores + Ads', 'Stores + Ads App'], ['LinkedIn', 'LinkedIn']];
-function chanTotals(src) {
-  const t = sum(D.funnel.filter(r => r.source === src && (state.days === 'all' || inWindow(r.day, 0, state.days - 1))));
-  if (src === 'LinkedIn' && D.heyreach) {
-    Object.entries(D.heyreach.daily).forEach(([d, h]) => {
-      if (state.days !== 'all' && !inWindow(d, 0, state.days - 1)) return;
-      t.message_sent += h.connections_accepted; t.replied += h.replies;
-    });
-  }
-  return t;
-}
-function renderChans() {
-  const rowsHtml = (t, k, label) => `<div class="cr"><span>${label}</span><span class="ct"><span class="cb" style="display:block;width:${pct(t[k], t.added)}%"></span></span><span class="cv">${t[k].toLocaleString()} \u00b7 ${fp(pct(t[k], t.added))}</span></div>`;
-  $('#chans').innerHTML = CHANNELS.filter(([src]) => D.sources.includes(src)).map(([src, name]) => {
-    const t = chanTotals(src);
-    return `<button type="button" class="chan" data-src="${esc(src)}"><div class="ch"><span class="cn">${esc(name)}</span><span class="cl">${t.added.toLocaleString()} leads</span></div>`
-      + rowsHtml(t, 'message_sent', 'Connected') + rowsHtml(t, 'replied', 'Replied') + rowsHtml(t, 'meeting', 'Demo') + rowsHtml(t, 'won', 'Won') + rowsHtml(t, 'dead', 'Dead') + '</button>';
-  }).join('');
-}
-$('#chans').addEventListener('click', e => {
-  const b = e.target.closest('.chan'); if (!b) return;
-  state.source = b.dataset.src; render(true); window.scrollTo({ top: 0, behavior: 'smooth' });
-});
-
 function render(announce) {
-  syncControls(); renderKPIs(); renderFunnel(); renderChans(); renderDead();
+  syncControls(); renderKPIs(); renderFunnel(); renderDead();
   if (announce) $('#live').textContent = 'Showing ' + scopeLabel() + ': ' + scope().added.toLocaleString() + ' leads';
 }
 $('#fakeBadge').hidden = !D.fake;
