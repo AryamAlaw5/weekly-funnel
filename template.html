@@ -142,6 +142,16 @@ function rows() {
   return D.funnel.filter(r => (state.source === 'All' || r.source === state.source)
     && (state.days === 'all' || inWindow(r.day, 0, state.days - 1)));
 }
+// "All" also counts the HeyReach LinkedIn funnel: accepted requests are Connected, replies are Replied
+function allView() {
+  const t = sum(rows());
+  if (state.source === 'All' && D.heyreach) {
+    const h = liTotals();
+    t.message_sent += h.accepted;
+    t.replied += h.replied;
+  }
+  return t;
+}
 function sum(rs) {
   const o = {}; D.keys.forEach(k => o[k] = 0);
   rs.forEach(r => D.keys.forEach(k => o[k] += r[k]));
@@ -163,7 +173,7 @@ function liTotals() {
   t.added = t.sent;
   return t;
 }
-const scope = () => hrView() ? liTotals() : sum(rows());
+const scope = () => hrView() ? liTotals() : allView();
 const scopeLabel = () => winLabel(state.days) + (state.source === 'All' ? '' : ' · ' + state.source);
 
 /* ---- tooltip (wide funnel only) ---- */
