@@ -189,7 +189,8 @@ function commitFile_(path, content, token, message) {
 // Needs the Script property HEYREACH_API_KEY (HeyReach > Settings > Integrations > API). Without it this step is skipped.
 // Read-only: asks HeyReach for aggregate campaign counts and commits data/heyreach.json. No lead data is read.
 const HEYREACH = {
-  CAMPAIGNS: [{ id: 692357, name: '1 NOV - EN', leads: 33 }, { id: 692364, name: '1 NOV - AR', leads: 17 }],
+  CAMPAIGNS: [{ id: 692357, name: '1 NOV - EN', leads: 33 }, { id: 692364, name: '1 NOV - AR', leads: 17 },
+    { id: 715017, name: 'non - saudi 8 nov', leads: 38 }, { id: 715077, name: 'Saudi 8 nov', leads: 22 }],
   FROM: '2026-11-01',
   FILE: 'data/heyreach.json',
   API: 'https://api.heyreach.io/api/public/',
