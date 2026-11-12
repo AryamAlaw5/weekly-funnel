@@ -29,7 +29,7 @@ def read_snapshot(path):
         reader = csv.DictReader(f)
         if not set(REQUIRED) <= set(reader.fieldnames or []):
             sys.exit(f"{path.name}: expected columns {REQUIRED}, found {reader.fieldnames}")
-        return [(r["lead_id"], r["source_tab"], canon(r["status"]), r.get("has_note") == "1") for r in reader]
+        return [(r["lead_id"], r["source_tab"], canon(r["status"]), r.get("has_note") == "1", " ".join((r.get("reason") or "").split())) for r in reader]
 
 
 def main():
@@ -41,8 +41,8 @@ def main():
 
     latest, first_seen, statuses = {}, {}, set()
     for f in files:
-        for lead_id, source, status, has_note in read_snapshot(f):
-            latest[lead_id] = (source, status, has_note)
+        for lead_id, source, status, has_note, reason in read_snapshot(f):
+            latest[lead_id] = (source, status, has_note, reason)
             first_seen.setdefault(lead_id, f.stem)
             statuses.add(status)
     as_of = files[-1].stem
@@ -57,8 +57,8 @@ def main():
     db.executemany("INSERT INTO meta VALUES (?, ?)", [
         ("source", "sheet"), ("as_of", as_of), ("unmapped", "|".join(unmapped)),
     ])
-    db.executemany("INSERT INTO leads VALUES (?,?,?,?,?,?)",
-                   [(lid, src, st, int(note), first_seen[lid], as_of) for lid, (src, st, note) in latest.items()])
+    db.executemany("INSERT INTO leads (lead_id, source_tab, status, reason, has_note, first_seen, updated_at) VALUES (?,?,?,?,?,?,?)",
+                   [(lid, src, st, rs, int(note), first_seen[lid], as_of) for lid, (src, st, note, rs) in latest.items()])
     db.commit()
     print(f"{len(latest)} leads, {len(files)} snapshot days (latest {as_of}), "
           f"{len(unmapped)} unmapped status(es){': ' + ', '.join(unmapped) if unmapped else ''}")

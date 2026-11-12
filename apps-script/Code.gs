@@ -103,6 +103,7 @@ function buildRows_(ss, salt, tz) {
       if (parts.every(function (p) { return p === ''; })) continue;
 
       const status = String(row[col['status']]).trim();
+      const reason = col['reason'] !== undefined ? String(row[col['reason']]).trim().slice(0, 40) : '';
       const hasNote = col['notes'] !== undefined && String(row[col['notes']]).trim() !== '' ? 1 : 0;
 
       const base = [cfg.source].concat(parts).join('|').toLowerCase();
@@ -111,6 +112,7 @@ function buildRows_(ss, salt, tz) {
         const prev = rows[seen[base]];
         if (!prev[2] && status) prev[2] = status;
         if (hasNote) prev[3] = 1;
+        if (!prev[4] && reason) prev[4] = reason;
         continue;
       }
       // other tabs: identical keys get a #2, #3 ... suffix so they stay separate leads
@@ -121,7 +123,7 @@ function buildRows_(ss, salt, tz) {
       } else {
         seen[base] = rows.length;
       }
-      rows.push([hmacHex_(idSource, salt).slice(0, 16), cfg.source, status, hasNote]);
+      rows.push([hmacHex_(idSource, salt).slice(0, 16), cfg.source, status, hasNote, reason]);
     }
   });
 
@@ -141,7 +143,7 @@ function hmacHex_(value, key) {
 
 function toCsv_(rows) {
   const esc = function (v) { return /[",\n]/.test(v) ? '"' + String(v).replace(/"/g, '""') + '"' : String(v); };
-  return [['lead_id', 'source_tab', 'status', 'has_note']].concat(rows)
+  return [['lead_id', 'source_tab', 'status', 'has_note', 'reason']].concat(rows)
     .map(function (r) { return r.map(esc).join(','); })
     .join('\n') + '\n';
 }

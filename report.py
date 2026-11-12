@@ -6,12 +6,14 @@ from pathlib import Path
 
 from common import DB_PATH, HERE, SHEET_URL, WINDOWS
 
-KEYS = ["added", "message_sent", "replied", "meeting", "won", "dead", "dead_with_note"]
+KEYS = ["added", "message_sent", "replied", "interested", "icp", "meeting", "won", "no_reply", "dead", "not_icp"]
 STAGES = [
     {"key": "added", "label": "Leads"},
-    {"key": "message_sent", "label": "Connected"},
+    {"key": "message_sent", "label": "Called"},
     {"key": "replied", "label": "Replied"},
-    {"key": "meeting", "label": "Demo"},
+    {"key": "interested", "label": "Interested"},
+    {"key": "icp", "label": "ICP"},
+    {"key": "meeting", "label": "Demo booked"},
     {"key": "won", "label": "Won"},
 ]
 
@@ -25,6 +27,11 @@ def main():
             f"SELECT first_seen, source_tab, {', '.join(KEYS)} FROM v_funnel_by_day ORDER BY first_seen")
     ]
 
+    dead = [
+        {"day": d, "source": src, "status": st, "reason": rs, "n": n}
+        for d, src, st, rs, n in db.execute("SELECT first_seen, source_tab, status, reason, n FROM v_dead_reasons")
+    ]
+
     heyreach_file = HERE / "data" / "heyreach.json"
     data = {
         "asOf": meta["as_of"],
@@ -36,6 +43,7 @@ def main():
         "keys": KEYS,
         "stages": STAGES,
         "funnel": funnel,
+        "dead": dead,
         "heyreach": json.loads(heyreach_file.read_text()) if heyreach_file.exists() and meta["source"] != "fake" else None,
     }
     html = (HERE / "template.html").read_text().replace("__DATA__", json.dumps(data))

@@ -22,12 +22,15 @@ TAB_SKILL = {"Zid": 0.9, "Salla": 0.7, "LinkedIn": 1.3}
 # status -> [(next status, daily probability, is_forward)]
 # Uses the sheet's dropdown (Whatsapp, Called, Demo, Not interested) plus Replied and Won so every stage shows up.
 TRANSITIONS = {
-    "Not Contacted": [("Whatsapp", 0.30, True), ("Called", 0.08, True)],
-    "Whatsapp": [("Called", 0.06, True), ("Replied", 0.05, True), ("Not interested", 0.04, False)],
-    "Called": [("Replied", 0.06, True), ("Not interested", 0.04, False)],
-    "Replied": [("Demo", 0.06, True), ("Not interested", 0.05, False)],
-    "Demo": [("Won", 0.04, True), ("Not interested", 0.04, False)],
+    "Not Contacted": [("Called", 0.35, True)],
+    "Called": [("Replied", 0.08, True), ("No Response", 0.05, False)],
+    "No Response": [("Replied", 0.01, True)],
+    "Replied": [("Interested", 0.10, True), ("Not Interested", 0.06, False)],
+    "Interested": [("ICP", 0.12, True), ("Not ICP", 0.08, False)],
+    "ICP": [("Demo booked", 0.12, True)],
+    "Demo booked": [("Won", 0.04, True)],
 }
+REASONS = ["Price", "No need", "Uses competitor", "Wrong size", "Bad timing"]
 
 PREFIX = ["Al Noor", "Najd", "Riyadh", "Gulf", "Desert", "Oasis", "Falcon", "Saffron", "Amber",
           "Tamar", "Qasr", "Layali", "Rimal", "Hijaz", "Jawhara", "Bayan", "Sahab", "Dar Al"]
@@ -79,9 +82,11 @@ def main():
             first = TODAY - timedelta(days=random.randrange(DAYS_BACK))
             lead_id = make_lead(tab, used)
             history = simulate(first, tab)
-            leads.append((lead_id, tab, history[-1][1], 0, first.isoformat(), TODAY.isoformat()))
+            final = history[-1][1]
+            reason = random.choice(REASONS) if final in ("Not Interested", "Not ICP") else ""
+            leads.append((lead_id, tab, final, reason, 0, first.isoformat(), TODAY.isoformat()))
 
-    db.executemany("INSERT INTO leads VALUES (?,?,?,?,?,?)", leads)
+    db.executemany("INSERT INTO leads (lead_id, source_tab, status, reason, has_note, first_seen, updated_at) VALUES (?,?,?,?,?,?,?)", leads)
     db.commit()
     print(f"{len(leads)} leads -> {DB_PATH.name}")
 

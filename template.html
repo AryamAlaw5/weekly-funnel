@@ -18,7 +18,7 @@
   --text-primary: #f3f2f8; --text-secondary: #a6a3b8; --text-muted: #8f8ca3;
   --grid: #2a2538; --border: #2a2538; --hover: #1b1826;
   --brand: #764ff6; --brand-soft: #d6c7fc;
-  --stage-1: #5b3fd2; --stage-2: #6a47e6; --stage-3: #764ff6; --stage-4: #926bf7; --stage-5: #b399fb; --stage-6: #d6c7fc;
+  --stage-1: #5b3fd2; --stage-2: #6a47e6; --stage-3: #764ff6; --stage-4: #926bf7; --stage-5: #b399fb; --stage-6: #d6c7fc; --stage-7: #e9e0fd;
   --s1: 4px; --s2: 8px; --s3: 12px; --s4: 16px; --s5: 24px; --s6: 32px;
   --radius: 16px;
 }
@@ -212,9 +212,10 @@ function renderKPIs() {
     ? LI_STAGES.map((s, i) => [s.label, t[s.key].toLocaleString(), i ? fp(pct(t[s.key], t.sent)) + ' of requests' : scopeLabel()])
     : [
       ['Leads', t.added.toLocaleString(), scopeLabel()],
-      ['Connected', fp(pct(t.message_sent, t.added)), t.message_sent + ' of ' + t.added],
-      ['Replied', fp(pct(t.replied, t.added)), t.replied + ' of ' + t.added],
-      ['Demos', t.meeting.toLocaleString(), fp(pct(t.meeting, t.added)) + ' of leads'],
+      ['Called', fp(pct(t.message_sent, t.added)), t.message_sent + ' of ' + t.added],
+      ['Replied', fp(pct(t.replied, t.message_sent)), t.replied + ' of ' + t.message_sent + ' called'],
+      ['ICP', fp(pct(t.icp, t.replied)), t.icp + ' of ' + t.replied + ' replied'],
+      ['Demos booked', t.meeting.toLocaleString(), fp(pct(t.meeting, t.added)) + ' of leads'],
       ['Won', t.won.toLocaleString(), fp(pct(t.won, t.added)) + ' of leads'],
     ];
   $('#kpis').innerHTML = tiles.map(([l, v, s]) =>
@@ -281,11 +282,20 @@ $('#funnel').addEventListener('mousemove', e => {
 });
 $('#funnel').addEventListener('mouseleave', hideTip);
 
-/* ---- Dead: leads with status Not interested. Note text stays in the private sheet; only counts are published. ---- */
+/* ---- Dead ends: No reply, Not interested, Not ICP, with the reason code from the sheet's Reason column. Counts only. ---- */
+function deadReasons() {
+  const m = {};
+  D.dead.filter(r => (state.source === 'All' || r.source === state.source)
+    && (state.days === 'all' || inWindow(r.day, 0, state.days - 1)))
+    .forEach(r => { m[r.reason] = (m[r.reason] || 0) + r.n; });
+  return Object.entries(m).sort((a, b) => b[1] - a[1]);
+}
 function renderDead() {
   const t = scope(), base = hrView() ? sum(rows()).added : t.added;
-  $('#deadBox').innerHTML = `<div class="kpi"><div class="l">Dead leads (Not interested)</div><div class="v">${t.dead.toLocaleString()}</div><div class="s">${fp(pct(t.dead, base))} of ${base.toLocaleString()}</div></div>`
-    + `<a class="kpi" href="${esc(D.sheetUrl)}" target="_blank" rel="noopener"><div class="l">Why are they dead?</div><div class="v">Notes</div></a>`;
+  const tile = (l, v) => `<div class="kpi"><div class="l">${l}</div><div class="v">${v.toLocaleString()}</div><div class="s">${fp(pct(v, base))} of ${base.toLocaleString()}</div></div>`;
+  const why = deadReasons();
+  $('#deadBox').innerHTML = tile('No reply', t.no_reply) + tile('Not interested', t.dead) + tile('Not ICP', t.not_icp)
+    + `<div class="kpi"><div class="l">Why? (top reasons)</div><div class="s">${why.length ? why.slice(0, 4).map(([r, n]) => esc(r) + ' ' + n).join(' · ') : 'No dead leads yet'}</div></div>`;
 }
 
 function render(announce) {
