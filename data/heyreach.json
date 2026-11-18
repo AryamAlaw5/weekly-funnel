@@ -1,25 +1,25 @@
 {
- "as_of": "2026-11-17",
+ "as_of": "2026-11-18",
  "note": "Aggregate counts only, from HeyReach campaigns 1 NOV - EN and 1 NOV - AR and non - saudi 8 nov and Saudi 8 nov (read-only). No lead data.",
  "campaigns": [
   {
    "name": "1 NOV - EN",
-   "status": "FINISHED",
+   "status": "UNKNOWN",
    "leads": 33
   },
   {
    "name": "1 NOV - AR",
-   "status": "FINISHED",
+   "status": "UNKNOWN",
    "leads": 17
   },
   {
    "name": "non - saudi 8 nov",
-   "status": "PAUSED",
+   "status": "UNKNOWN",
    "leads": 38
   },
   {
    "name": "Saudi 8 nov",
-   "status": "PAUSED",
+   "status": "UNKNOWN",
    "leads": 22
   }
  ],
